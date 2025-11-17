@@ -4,7 +4,8 @@ Flask 웹 서버 - Excel 파일 업로드 및 병합
 """
 
 import os
-from flask import Flask, render_template, request, send_file, jsonify
+import pandas as pd
+from flask import Flask, render_template, request, send_file, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 from excel_processor import ExcelProcessor
 import logging
@@ -107,7 +108,8 @@ def upload_files():
                 'success': True,
                 'message': '파일 처리가 완료되었습니다.',
                 'filename': output_filename,
-                'download_url': f'/download/{output_filename}'
+                'download_url': f'/download/{output_filename}',
+                'preview_url': f'/preview/{output_filename}'
             })
         else:
             return jsonify({
@@ -117,6 +119,47 @@ def upload_files():
 
     except Exception as e:
         logger.error(f"업로드 처리 중 오류: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
+@app.route('/preview/<filename>')
+def preview_file(filename):
+    """
+    결과 파일 미리보기 엔드포인트
+    """
+    try:
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+
+        if not os.path.exists(filepath):
+            return jsonify({
+                'success': False,
+                'message': '파일을 찾을 수 없습니다.'
+            }), 404
+
+        # 엑셀 파일 읽기
+        df = pd.read_excel(filepath, engine='openpyxl')
+
+        # 데이터프레임을 딕셔너리로 변환
+        data = {
+            'columns': df.columns.tolist(),
+            'rows': df.fillna('').astype(str).values.tolist(),
+            'total_rows': len(df)
+        }
+
+        return jsonify({
+            'success': True,
+            'data': data
+        })
+
+    except Exception as e:
+        logger.error(f"미리보기 중 오류: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'message': f'오류 발생: {str(e)}'
@@ -129,22 +172,32 @@ def download_file(filename):
     결과 파일 다운로드 엔드포인트
     """
     try:
-        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        # 파일명 검증
+        secure_name = secure_filename(filename)
+        filepath = os.path.join(OUTPUT_FOLDER, secure_name)
 
         if not os.path.exists(filepath):
+            logger.error(f"파일을 찾을 수 없음: {filepath}")
             return jsonify({
                 'success': False,
                 'message': '파일을 찾을 수 없습니다.'
             }), 404
 
-        return send_file(
-            filepath,
+        logger.info(f"파일 다운로드 시작: {filepath}")
+
+        # send_from_directory 사용
+        return send_from_directory(
+            OUTPUT_FOLDER,
+            secure_name,
             as_attachment=True,
-            download_name=filename
+            download_name=secure_name,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
     except Exception as e:
         logger.error(f"다운로드 중 오류: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
             'message': f'오류 발생: {str(e)}'

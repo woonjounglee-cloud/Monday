@@ -15,9 +15,6 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
 
@@ -26,8 +23,8 @@
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             padding: 40px;
-            max-width: 800px;
-            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
         }
 
         h1 {
@@ -168,18 +165,32 @@
 
         .download-button {
             display: inline-block;
-            margin-top: 10px;
-            padding: 10px 20px;
+            margin: 10px 5px;
+            padding: 12px 24px;
             background: #28a745;
             color: white;
             text-decoration: none;
-            border-radius: 5px;
+            border-radius: 8px;
             transition: all 0.3s ease;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
         }
 
         .download-button:hover {
             background: #218838;
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .preview-button {
+            background: #007bff;
+        }
+
+        .preview-button:hover {
+            background: #0056b3;
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.4);
         }
 
         .loading {
@@ -225,6 +236,92 @@
 
         .info-box li {
             margin-bottom: 4px;
+        }
+
+        /* 결과 테이블 스타일 */
+        .result-section {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .result-title {
+            font-size: 20px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .result-info {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .table-container {
+            max-height: 600px;
+            overflow: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            background: #667eea;
+            z-index: 10;
+        }
+
+        thead th {
+            padding: 12px 8px;
+            text-align: left;
+            color: white;
+            font-weight: 600;
+            border-right: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        thead th:last-child {
+            border-right: none;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        tbody tr:nth-child(even):hover {
+            background: #f0f0f0;
+        }
+
+        tbody td {
+            padding: 10px 8px;
+            border-right: 1px solid #eee;
+        }
+
+        tbody td:last-child {
+            border-right: none;
+        }
+
+        .button-group {
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -305,9 +402,38 @@
         </div>
 
         <div class="message" id="message"></div>
+
+        <!-- 결과 섹션 -->
+        <div class="result-section" id="resultSection">
+            <div class="result-header">
+                <div class="result-title">📋 처리 결과</div>
+                <div class="result-info" id="resultInfo"></div>
+            </div>
+
+            <div class="button-group">
+                <button class="download-button" id="downloadBtn" onclick="downloadFile()">
+                    📥 Excel 파일 다운로드
+                </button>
+                <button class="download-button preview-button" onclick="togglePreview()">
+                    👁️ 결과 미리보기
+                </button>
+            </div>
+
+            <div class="table-container" id="tableContainer" style="display: none;">
+                <table id="resultTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <script>
+        let currentFilename = '';
+        let currentDownloadUrl = '';
+        let currentPreviewUrl = '';
+        let previewData = null;
+
         // 파일 선택 시 파일명 표시
         const fileInputs = ['driving_test', 'stationary_call_test', 'vq_test', 'model_manager'];
 
@@ -334,6 +460,7 @@
             const submitButton = this.querySelector('.submit-button');
             const loading = document.getElementById('loading');
             const message = document.getElementById('message');
+            const resultSection = document.getElementById('resultSection');
 
             // 최소 1개의 테스트 파일이 있는지 확인
             const hasFile = formData.get('driving_test')?.size > 0 ||
@@ -349,6 +476,7 @@
             submitButton.disabled = true;
             loading.style.display = 'block';
             message.style.display = 'none';
+            resultSection.style.display = 'none';
 
             try {
                 const response = await fetch('/upload', {
@@ -359,10 +487,15 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    showMessage('success',
-                        result.message +
-                        `<br><a href="${result.download_url}" class="download-button">📥 ${result.filename} 다운로드</a>`
-                    );
+                    currentFilename = result.filename;
+                    currentDownloadUrl = result.download_url;
+                    currentPreviewUrl = result.preview_url;
+
+                    showMessage('success', result.message);
+                    resultSection.style.display = 'block';
+
+                    // 자동으로 미리보기 로드
+                    loadPreview();
                 } else {
                     showMessage('error', result.message);
                 }
@@ -373,6 +506,63 @@
                 loading.style.display = 'none';
             }
         });
+
+        // 미리보기 로드
+        async function loadPreview() {
+            try {
+                const response = await fetch(currentPreviewUrl);
+                const result = await response.json();
+
+                if (result.success) {
+                    previewData = result.data;
+                    document.getElementById('resultInfo').textContent =
+                        `총 ${result.data.total_rows}개 행`;
+
+                    // 테이블 자동 표시
+                    showPreview();
+                }
+            } catch (error) {
+                console.error('미리보기 로드 실패:', error);
+            }
+        }
+
+        // 미리보기 표시/숨김 토글
+        function togglePreview() {
+            const container = document.getElementById('tableContainer');
+            if (container.style.display === 'none') {
+                showPreview();
+            } else {
+                container.style.display = 'none';
+            }
+        }
+
+        // 미리보기 표시
+        function showPreview() {
+            if (!previewData) return;
+
+            const container = document.getElementById('tableContainer');
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+
+            // 헤더 생성
+            tableHead.innerHTML = '<tr>' +
+                previewData.columns.map(col => `<th>${col}</th>`).join('') +
+                '</tr>';
+
+            // 본문 생성
+            tableBody.innerHTML = previewData.rows.map(row =>
+                '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>'
+            ).join('');
+
+            container.style.display = 'block';
+        }
+
+        // 파일 다운로드
+        function downloadFile() {
+            if (currentDownloadUrl) {
+                window.location.href = currentDownloadUrl;
+            }
+        }
 
         function showMessage(type, text) {
             const message = document.getElementById('message');
