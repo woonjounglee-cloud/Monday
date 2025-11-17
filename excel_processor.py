@@ -20,8 +20,14 @@ class ExcelProcessor:
     # 추출할 컬럼 목록
     REQUIRED_COLUMNS = [
         '검증항목', '과제명', '개발모델명', '검증단계',
-        'PRA', '외뢰일', '완료요청일', '검증 PL'
+        'PRA', '의뢰일', '완료요청일', '검증 PL'
     ]
+
+    # 컬럼 별칭 (여러 이름으로 불릴 수 있는 컬럼)
+    COLUMN_ALIASES = {
+        '의뢰일': ['의뢰일', '외뢰일', '의뢰', '외뢰'],
+        '검증 PL': ['검증 PL', '검증PL', 'PL'],
+    }
 
     def __init__(self):
         """초기화"""
@@ -149,12 +155,20 @@ class ExcelProcessor:
             logger.info(f"읽은 데이터: {len(df)} 행, {len(df.columns)} 열")
             logger.info(f"컬럼 목록: {df.columns.tolist()}")
 
-            # 필요한 컬럼 찾기 (부분 일치 허용)
+            # 필요한 컬럼 찾기 (부분 일치 및 별칭 허용)
             column_mapping = {}
             for req_col in self.REQUIRED_COLUMNS:
+                # 별칭 목록 가져오기
+                aliases = self.COLUMN_ALIASES.get(req_col, [req_col])
+
                 for df_col in df.columns:
-                    if req_col in str(df_col) or str(df_col) in req_col:
-                        column_mapping[df_col] = req_col
+                    df_col_str = str(df_col).strip()
+                    # 별칭 중 하나라도 일치하면 매칭
+                    for alias in aliases:
+                        if alias in df_col_str or df_col_str in alias:
+                            column_mapping[df_col] = req_col
+                            break
+                    if df_col in column_mapping:
                         break
 
             if not column_mapping:
@@ -409,6 +423,25 @@ class ExcelProcessor:
 
             # 엑셀 파일로 저장 (openpyxl 엔진 사용)
             df_to_save.to_excel(output_path, index=False, engine='openpyxl')
+
+            # openpyxl로 파일 열어서 셀 정렬 적용
+            from openpyxl import load_workbook
+            from openpyxl.styles import Alignment
+
+            wb = load_workbook(output_path)
+            ws = wb.active
+
+            # 가운데 정렬 스타일 생성
+            center_alignment = Alignment(horizontal='center', vertical='center')
+
+            # 모든 셀에 가운데 정렬 적용
+            for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+                for cell in row:
+                    cell.alignment = center_alignment
+
+            # 변경사항 저장
+            wb.save(output_path)
+            logger.info("셀 정렬 적용 완료")
 
             logger.info(f"저장 완료: {output_path} ({len(df_to_save)} 행, {len(df_to_save.columns)} 열)")
             return True

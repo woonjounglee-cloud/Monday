@@ -166,31 +166,44 @@ def preview_file(filename):
         }), 500
 
 
-@app.route('/download/<filename>')
+@app.route('/download/<path:filename>')
 def download_file(filename):
     """
     결과 파일 다운로드 엔드포인트
     """
     try:
-        # 파일명 검증
-        secure_name = secure_filename(filename)
-        filepath = os.path.join(OUTPUT_FOLDER, secure_name)
+        logger.info(f"다운로드 요청: {filename}")
 
-        if not os.path.exists(filepath):
-            logger.error(f"파일을 찾을 수 없음: {filepath}")
+        # 파일 경로 생성 (secure_filename 사용하지 않음 - 한글 파일명 지원)
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+
+        # 절대 경로로 변환
+        abs_output_folder = os.path.abspath(OUTPUT_FOLDER)
+        abs_filepath = os.path.abspath(filepath)
+
+        # 경로 검증 (보안: 디렉토리 탈출 방지)
+        if not abs_filepath.startswith(abs_output_folder):
+            logger.error(f"잘못된 경로 접근 시도: {filepath}")
+            return jsonify({
+                'success': False,
+                'message': '잘못된 경로입니다.'
+            }), 403
+
+        if not os.path.exists(abs_filepath):
+            logger.error(f"파일을 찾을 수 없음: {abs_filepath}")
+            logger.info(f"OUTPUT_FOLDER 내용: {os.listdir(OUTPUT_FOLDER)}")
             return jsonify({
                 'success': False,
                 'message': '파일을 찾을 수 없습니다.'
             }), 404
 
-        logger.info(f"파일 다운로드 시작: {filepath}")
+        logger.info(f"파일 다운로드 시작: {abs_filepath}")
 
-        # send_from_directory 사용
-        return send_from_directory(
-            OUTPUT_FOLDER,
-            secure_name,
+        # send_file 사용 (절대 경로)
+        return send_file(
+            abs_filepath,
             as_attachment=True,
-            download_name=secure_name,
+            download_name=filename,
             mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         )
 
