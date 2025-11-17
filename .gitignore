@@ -27,6 +27,7 @@ wheels/
 downloads/
 output/
 uploads/
+data/
 
 # IDE
 .vscode/
