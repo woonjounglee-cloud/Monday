@@ -270,11 +270,9 @@
             border-right: none;
         }
 
-        /* Model Info 테이블 컬럼 너비 설정 */
-        #modelTableContainer table th:nth-child(1),
-        #modelTableContainer table td:nth-child(1),
-        #modelTableContainer table th:nth-child(2),
-        #modelTableContainer table td:nth-child(2) {
+        /* Model Info 테이블 컬럼 너비 설정 - 5개 열 모두 동일 */
+        #modelTableContainer table th,
+        #modelTableContainer table td {
             width: 200px;
             min-width: 200px;
             max-width: 200px;
@@ -500,7 +498,7 @@
                 <div class="search-bar">
                     <div class="form-group">
                         <label class="form-label">과제명 또는 개발모델명</label>
-                        <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요">
+                        <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요" onkeypress="if(event.key==='Enter') searchModel()">
                     </div>
                     <button class="btn btn-primary" onclick="searchModel()">검색</button>
                     <button class="btn btn-info" onclick="loadAllModels()">전체 보기</button>
