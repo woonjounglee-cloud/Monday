@@ -28,6 +28,7 @@ downloads/
 output/
 uploads/
 data/
+db/
 
 # IDE
 .vscode/

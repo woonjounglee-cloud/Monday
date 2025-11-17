@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flask 웹 서버 - Monday FP Manager
+Flask 웹 서버 - Monday
 Schedule 관리 및 Model Info 데이터베이스 관리
 """
 
@@ -24,16 +24,16 @@ app.config['SECRET_KEY'] = 'your-secret-key-here'
 # 업로드 폴더 설정
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'output'
-DATA_FOLDER = 'data'
+DB_FOLDER = 'db'
 ALLOWED_EXTENSIONS = {'xlsx', 'xls'}
 
 # 폴더 생성
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(OUTPUT_FOLDER, exist_ok=True)
-os.makedirs(DATA_FOLDER, exist_ok=True)
+os.makedirs(DB_FOLDER, exist_ok=True)
 
 # 모델담당자 데이터베이스 파일 경로
-MODEL_DB_PATH = os.path.join(DATA_FOLDER, 'model_manager.xlsx')
+MODEL_DB_PATH = os.path.join(DB_FOLDER, 'model_manager.xlsx')
 
 
 def allowed_file(filename):
@@ -78,37 +78,39 @@ def index():
 @app.route('/upload', methods=['POST'])
 def upload_files():
     """
-    파일 업로드 및 처리 엔드포인트
+    파일 업로드 및 처리 엔드포인트 - 단일 Schedule 파일 처리
     """
     try:
         logger.info("파일 업로드 요청 수신")
 
-        # 파일 확인
-        files = {}
-        file_keys = ['driving_test', 'stationary_call_test', 'vq_test', 'model_manager']
-
-        uploaded_files = {}
-
-        for key in file_keys:
-            if key in request.files:
-                file = request.files[key]
-                if file and file.filename and allowed_file(file.filename):
-                    # 안전한 파일명 생성
-                    filename = secure_filename(file.filename)
-                    filepath = os.path.join(UPLOAD_FOLDER, f"{key}_{filename}")
-
-                    # 파일 저장
-                    file.save(filepath)
-                    uploaded_files[key] = filepath
-                    logger.info(f"파일 저장됨: {key} -> {filepath}")
-
-        # 최소 1개의 테스트 파일은 있어야 함
-        test_files = {k: v for k, v in uploaded_files.items() if k != 'model_manager'}
-        if not test_files:
+        # Schedule 파일 확인
+        if 'schedule_file' not in request.files:
             return jsonify({
                 'success': False,
-                'message': '최소 1개 이상의 테스트 파일을 업로드해주세요.'
+                'message': '일정 파일을 업로드해주세요.'
             }), 400
+
+        file = request.files['schedule_file']
+
+        if not file or not file.filename:
+            return jsonify({
+                'success': False,
+                'message': '일정 파일을 업로드해주세요.'
+            }), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({
+                'success': False,
+                'message': '엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.'
+            }), 400
+
+        # 안전한 파일명 생성
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(UPLOAD_FOLDER, f"schedule_{filename}")
+
+        # 파일 저장
+        file.save(filepath)
+        logger.info(f"파일 저장됨: {filepath}")
 
         # ExcelProcessor로 처리
         processor = ExcelProcessor()
@@ -118,26 +120,15 @@ def upload_files():
         output_filename = f"{week_number}_FA_과제일정.xlsx"
         output_path = os.path.join(OUTPUT_FOLDER, output_filename)
 
-        # 테스트 파일 딕셔너리 생성
-        test_files_dict = {
-            'Driving_Test': uploaded_files.get('driving_test'),
-            'Stationary_Call_Test': uploaded_files.get('stationary_call_test'),
-            'VQ_Test': uploaded_files.get('vq_test')
-        }
-
-        # 모델담당자 파일
-        model_manager_file = uploaded_files.get('model_manager')
-
-        # 처리 실행
-        success = processor.process(test_files_dict, model_manager_file, output_path)
+        # 처리 실행 (단일 파일, db/model_manager.xlsx 사용)
+        success = processor.process(filepath, MODEL_DB_PATH, output_path)
 
         if success:
             logger.info(f"처리 완료: {output_path}")
 
             # 업로드된 파일 정리 (선택사항)
-            # for filepath in uploaded_files.values():
-            #     if os.path.exists(filepath):
-            #         os.remove(filepath)
+            # if os.path.exists(filepath):
+            #     os.remove(filepath)
 
             return jsonify({
                 'success': True,
@@ -410,7 +401,7 @@ def export_model_info():
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("Monday FP Manager 시작")
+    print("Monday 시작")
     print("접속 주소: http://localhost:5000")
     print("=" * 60)
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monday FP Manager</title>
+    <title>Monday</title>
     <style>
         * {
             margin: 0;
@@ -42,6 +42,16 @@
         .header p {
             font-size: 14px;
             opacity: 0.9;
+        }
+
+        .info-box {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #555;
         }
 
         /* 탭 스타일 */
@@ -426,7 +436,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📅 Monday FP Manager</h1>
+            <h1>📅 Monday</h1>
             <p>Field Protocol 일정 관리 및 모델 데이터베이스</p>
         </div>
 
@@ -448,48 +458,23 @@
             </div>
 
             <form id="uploadForm" enctype="multipart/form-data">
-                <div class="section-title">🧪 테스트 파일 업로드</div>
+                <div class="section-title">📊 일정 파일 업로드</div>
 
-                <div class="form-group">
-                    <label class="form-label">Driving_Test</label>
-                    <div class="file-input-wrapper">
-                        <label for="driving_test" class="file-input-button">파일 선택</label>
-                        <input type="file" id="driving_test" name="driving_test" accept=".xlsx,.xls">
-                        <span class="file-name" id="driving_test_name">선택된 파일 없음</span>
-                    </div>
+                <div class="info-box">
+                    <strong>ℹ️ 안내:</strong> Schedule 파일 1개를 업로드하면 자동으로 db/model_manager.xlsx 데이터베이스와 매칭됩니다.
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">Stationary_Call_Test</label>
+                    <label class="form-label">Schedule_File</label>
                     <div class="file-input-wrapper">
-                        <label for="stationary_call_test" class="file-input-button">파일 선택</label>
-                        <input type="file" id="stationary_call_test" name="stationary_call_test" accept=".xlsx,.xls">
-                        <span class="file-name" id="stationary_call_test_name">선택된 파일 없음</span>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label class="form-label">VQ_Test</label>
-                    <div class="file-input-wrapper">
-                        <label for="vq_test" class="file-input-button">파일 선택</label>
-                        <input type="file" id="vq_test" name="vq_test" accept=".xlsx,.xls">
-                        <span class="file-name" id="vq_test_name">선택된 파일 없음</span>
-                    </div>
-                </div>
-
-                <div class="section-title" style="margin-top: 30px;">👥 모델담당자 파일 (선택사항)</div>
-
-                <div class="form-group">
-                    <label class="form-label">모델담당자.xlsx</label>
-                    <div class="file-input-wrapper">
-                        <label for="model_manager" class="file-input-button">파일 선택</label>
-                        <input type="file" id="model_manager" name="model_manager" accept=".xlsx,.xls">
-                        <span class="file-name" id="model_manager_name">선택된 파일 없음</span>
+                        <label for="schedule_file" class="file-input-button">파일 선택</label>
+                        <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
+                        <span class="file-name" id="schedule_file_name">선택된 파일 없음</span>
                     </div>
                 </div>
 
                 <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
-                    📥 파일 병합 시작
+                    📥 일정 처리 시작
                 </button>
             </form>
 
@@ -626,20 +611,17 @@
         // ========== Schedule 탭 기능 ==========
 
         // 파일 선택 시 파일명 표시
-        const fileInputs = ['driving_test', 'stationary_call_test', 'vq_test', 'model_manager'];
-        fileInputs.forEach(inputId => {
-            const input = document.getElementById(inputId);
-            const nameSpan = document.getElementById(inputId + '_name');
+        const scheduleFileInput = document.getElementById('schedule_file');
+        const scheduleFileNameSpan = document.getElementById('schedule_file_name');
 
-            input.addEventListener('change', function(e) {
-                if (this.files && this.files[0]) {
-                    nameSpan.textContent = this.files[0].name;
-                    nameSpan.style.color = '#28a745';
-                } else {
-                    nameSpan.textContent = '선택된 파일 없음';
-                    nameSpan.style.color = '#666';
-                }
-            });
+        scheduleFileInput.addEventListener('change', function(e) {
+            if (this.files && this.files[0]) {
+                scheduleFileNameSpan.textContent = this.files[0].name;
+                scheduleFileNameSpan.style.color = '#28a745';
+            } else {
+                scheduleFileNameSpan.textContent = '선택된 파일 없음';
+                scheduleFileNameSpan.style.color = '#666';
+            }
         });
 
         // 폼 제출
@@ -652,13 +634,10 @@
             const message = document.getElementById('scheduleMessage');
             const resultSection = document.getElementById('scheduleResult');
 
-            // 최소 1개의 테스트 파일 확인
-            const hasFile = formData.get('driving_test')?.size > 0 ||
-                          formData.get('stationary_call_test')?.size > 0 ||
-                          formData.get('vq_test')?.size > 0;
-
-            if (!hasFile) {
-                showMessage('scheduleMessage', 'error', '최소 1개 이상의 테스트 파일을 선택해주세요.');
+            // Schedule 파일 확인
+            const scheduleFile = formData.get('schedule_file');
+            if (!scheduleFile || scheduleFile.size === 0) {
+                showMessage('scheduleMessage', 'error', 'Schedule 파일을 선택해주세요.');
                 return;
             }
 
