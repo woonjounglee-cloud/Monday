@@ -31,9 +31,9 @@ class ExcelProcessor:
 
     # 검증항목 우선순위 (낮은 숫자가 우선)
     VERIFICATION_ITEM_PRIORITY = {
-        '필드 프로토콜_주행시험': 1,
-        '필드 프로토콜_고정점 송수신 시험': 2,
-        '필드 프로토콜_송수화 시험': 3
+        '주행': 1,  # 필드 프로토콜_주행 시험 / 필드 프로토콜_주행시험
+        '고정점': 2,  # 필드 프로토콜_고정점 송수신 시험
+        '송수화': 3   # 필드 프로토콜_송수화 시험
     }
 
     def __init__(self):
@@ -292,10 +292,13 @@ class ExcelProcessor:
 
         item_str = str(verification_item).strip()
 
-        # 정확히 일치하는 항목 찾기
-        for key, priority in self.VERIFICATION_ITEM_PRIORITY.items():
-            if key in item_str:
-                return priority
+        # 키워드로 항목 찾기 (띄어쓰기 변형 대응)
+        if '주행' in item_str:
+            return 1
+        elif '고정점' in item_str or '송수신' in item_str:
+            return 2
+        elif '송수화' in item_str:
+            return 3
 
         # 매칭되지 않으면 낮은 우선순위
         return 999

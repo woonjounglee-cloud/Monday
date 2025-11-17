@@ -270,6 +270,16 @@
             border-right: none;
         }
 
+        /* Model Info 테이블 컬럼 너비 설정 */
+        #modelTableContainer table th:nth-child(1),
+        #modelTableContainer table td:nth-child(1),
+        #modelTableContainer table th:nth-child(2),
+        #modelTableContainer table td:nth-child(2) {
+            width: 200px;
+            min-width: 200px;
+            max-width: 200px;
+        }
+
         .message {
             margin-top: 20px;
             padding: 15px;
@@ -447,22 +457,8 @@
 
         <!-- Schedule 탭 -->
         <div id="scheduleTab" class="tab-content active">
-            <div class="info-box">
-                <h3>📌 사용 안내</h3>
-                <ul>
-                    <li>3개의 테스트 파일 중 최소 1개 이상 업로드 필수</li>
-                    <li>모델담당자 파일은 선택사항입니다</li>
-                    <li>결과 파일명: W{주차}_FA_과제일정.xlsx (예: W47_FA_과제일정.xlsx)</li>
-                    <li>추출 컬럼: 검증항목, 과제명, 개발모델명, 검증단계, PRA, 의뢰일, 완료요청일, 검증 PL, 모델담당자, AP/CP</li>
-                </ul>
-            </div>
-
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="section-title">📊 일정 파일 업로드</div>
-
-                <div class="info-box">
-                    <strong>ℹ️ 안내:</strong> Schedule 파일 1개를 업로드하면 자동으로 db/model_manager.xlsx 데이터베이스와 매칭됩니다.
-                </div>
 
                 <div class="form-group">
                     <label class="form-label">Schedule_File</label>
@@ -487,16 +483,8 @@
 
             <div class="result-section" id="scheduleResult" style="display: none; margin-top: 30px;">
                 <div class="section-title">📋 처리 결과</div>
-                <div class="button-group">
-                    <button class="btn btn-success" onclick="downloadScheduleFile()">
-                        📥 Excel 파일 다운로드
-                    </button>
-                    <button class="btn btn-info" onclick="toggleSchedulePreview()">
-                        👁️ 결과 미리보기
-                    </button>
-                </div>
                 <div class="result-info" id="scheduleResultInfo"></div>
-                <div class="table-container" id="scheduleTableContainer" style="display: none;">
+                <div class="table-container" id="scheduleTableContainer">
                     <table>
                         <thead id="scheduleTableHead"></thead>
                         <tbody id="scheduleTableBody"></tbody>
@@ -569,11 +557,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">AP/CP *</label>
-                        <select id="addAPCP">
-                            <option value="">선택</option>
-                            <option value="AP">AP</option>
-                            <option value="CP">CP</option>
-                        </select>
+                        <input type="text" id="addAPCP" placeholder="AP 또는 CP">
                     </div>
                 </div>
                 <button class="btn btn-success" onclick="addModelInfo()">
