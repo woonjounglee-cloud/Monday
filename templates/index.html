@@ -270,12 +270,30 @@
             border-right: none;
         }
 
-        /* Model Info 테이블 컬럼 너비 설정 - 5개 열 모두 동일 */
-        #modelTableContainer table th,
-        #modelTableContainer table td {
-            width: 200px;
-            min-width: 200px;
-            max-width: 200px;
+        /* Model Info 테이블 컬럼 너비 설정 - 비율 1.4:1.2:1:1:1 */
+        #modelTableContainer table th:nth-child(1),
+        #modelTableContainer table td:nth-child(1) {
+            width: 168px;
+            min-width: 168px;
+            max-width: 168px;
+        }
+
+        #modelTableContainer table th:nth-child(2),
+        #modelTableContainer table td:nth-child(2) {
+            width: 144px;
+            min-width: 144px;
+            max-width: 144px;
+        }
+
+        #modelTableContainer table th:nth-child(3),
+        #modelTableContainer table td:nth-child(3),
+        #modelTableContainer table th:nth-child(4),
+        #modelTableContainer table td:nth-child(4),
+        #modelTableContainer table th:nth-child(5),
+        #modelTableContainer table td:nth-child(5) {
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
         }
 
         .message {
