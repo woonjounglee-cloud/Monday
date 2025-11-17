@@ -1,26 +1,26 @@
-# Excel Scraper and Merger
+# FA 과제일정 엑셀 병합 시스템
 
-특정 웹사이트에서 엑셀 파일을 다운로드하고 데이터를 가공하여 하나의 파일로 병합하는 Python 프로그램입니다.
+3개의 테스트 엑셀 파일과 모델담당자 파일을 업로드하여 하나의 통합 과제일정 파일을 생성하는 웹 서버입니다.
 
-## 기능
+## 주요 기능
 
-- 여러 URL에서 엑셀 파일 자동 다운로드
-- 다운로드한 엑셀 파일 데이터 가공 및 정리
-- 여러 엑셀 파일을 하나의 파일로 병합
-- 각 데이터의 출처(Source) 추적
-- 로깅을 통한 프로세스 모니터링
+- 📤 **파일 업로드**: 3개의 테스트 파일 + 1개의 모델담당자 파일 업로드
+- 📊 **데이터 추출**: 필요한 컬럼만 자동 추출
+- 🔄 **자동 정렬**: PRA 항목으로 오름차순 정렬
+- 🔍 **VLOOKUP**: 개발모델명 기반으로 모델담당자 정보 자동 매칭
+- 📥 **결과 다운로드**: W{주차}_FA_과제일정.xlsx 형식으로 결과 파일 생성
 
 ## 설치 방법
 
 ### 1. Python 환경 확인
 
-Python 3.8 이상이 설치되어 있어야 합니다.
+Python 3.8 이상이 필요합니다.
 
 ```bash
 python --version
 ```
 
-### 2. 필요한 패키지 설치
+### 2. 의존성 패키지 설치
 
 ```bash
 pip install -r requirements.txt
@@ -28,185 +28,216 @@ pip install -r requirements.txt
 
 ## 사용 방법
 
-### 1. URL 설정
-
-`excel_scraper_merger.py` 파일을 열어서 다운로드할 파일의 URL을 설정합니다:
-
-```python
-def main():
-    scraper = ExcelScraperMerger()
-
-    # 실제 URL로 변경하세요
-    scraper.urls['Field_Protocol_Driving_Test'] = 'https://your-url.com/file1.xlsx'
-    scraper.urls['Field_Protocol_Stationary_Call_Test'] = 'https://your-url.com/file2.xlsx'
-    scraper.urls['Field_Protocol_VQ_Test'] = 'https://your-url.com/file3.xlsx'
-
-    # 실행
-    result = scraper.run(merge=True)
-```
-
-### 2. 프로그램 실행
+### 1. 서버 시작
 
 ```bash
-python excel_scraper_merger.py
+python app.py
 ```
 
-### 3. 실행 옵션
+서버가 시작되면 다음 메시지가 표시됩니다:
 
-#### 모든 파일을 하나로 병합
-```python
-result = scraper.run(merge=True)
+```
+============================================================
+Excel 병합 서버 시작
+접속 주소: http://localhost:5000
+============================================================
 ```
 
-#### 각 파일을 개별적으로 처리
-```python
-result = scraper.run(merge=False)
-```
+### 2. 웹 브라우저 접속
 
-## 프로그램 구조
+브라우저에서 `http://localhost:5000` 으로 접속합니다.
+
+### 3. 파일 업로드
+
+#### 필수 파일 (최소 1개 이상)
+- **Driving_Test**: 주행 테스트 엑셀 파일
+- **Stationary_Call_Test**: 정지 통화 테스트 엑셀 파일
+- **VQ_Test**: VQ 테스트 엑셀 파일
+
+#### 선택 파일
+- **모델담당자.xlsx**: 모델담당자 정보가 포함된 엑셀 파일
+
+### 4. 결과 다운로드
+
+파일 처리가 완료되면 다운로드 버튼이 표시됩니다.
+
+## 파일 형식
+
+### 입력 파일 (테스트 파일)
+
+다음 컬럼이 포함되어야 합니다:
+
+| 컬럼명 | 설명 |
+|--------|------|
+| 검증항목 | 검증 항목명 |
+| 과제명 | 과제 이름 |
+| 개발모델명 | 개발 모델명 |
+| 검증단계 | 검증 단계 |
+| PRA | PRA 값 (정렬 기준) |
+| 외뢰일 | 외뢰 날짜 |
+| 완료요청일 | 완료 요청 날짜 |
+| 검증 PL | 검증 PL 담당자 |
+
+### 입력 파일 (모델담당자.xlsx)
+
+다음 컬럼이 포함되어야 합니다:
+
+| 컬럼명 | 설명 |
+|--------|------|
+| 개발모델명 | 개발 모델명 (VLOOKUP 키) |
+| 모델담당자 | 모델 담당자 이름 |
+| AP/CP | AP 또는 CP 구분 |
+
+### 출력 파일
+
+**파일명 형식**: `W{주차}_FA_과제일정.xlsx`
+
+예시: `W47_FA_과제일정.xlsx` (2025년 47주차)
+
+**컬럼 구성** (A~J열):
+
+| 열 | 컬럼명 | 설명 |
+|----|--------|------|
+| A | 검증항목 | 검증 항목명 |
+| B | 과제명 | 과제 이름 |
+| C | 개발모델명 | 개발 모델명 |
+| D | 검증단계 | 검증 단계 |
+| E | PRA | PRA 값 (오름차순 정렬됨) |
+| F | 외뢰일 | 외뢰 날짜 |
+| G | 완료요청일 | 완료 요청 날짜 |
+| H | 검증 PL | 검증 PL 담당자 |
+| I | 모델담당자 | 모델 담당자 (VLOOKUP 결과) |
+| J | AP/CP | AP 또는 CP (VLOOKUP 결과) |
+
+## 프로젝트 구조
 
 ```
 Monday/
-├── excel_scraper_merger.py   # 메인 스크립트
-├── requirements.txt           # 필요한 패키지 목록
-├── downloads/                 # 다운로드된 파일 저장 폴더 (자동 생성)
-└── output/                    # 처리된 결과 파일 저장 폴더 (자동 생성)
+├── app.py                      # Flask 웹 서버
+├── excel_processor.py          # 엑셀 처리 로직
+├── excel_scraper_merger.py     # 기존 스크래퍼 (참고용)
+├── requirements.txt            # 필요한 패키지 목록
+├── templates/
+│   └── index.html             # 웹 인터페이스
+├── uploads/                   # 업로드된 파일 저장 (자동 생성)
+├── output/                    # 결과 파일 저장 (자동 생성)
+└── README.md                  # 문서 (이 파일)
 ```
 
 ## 주요 클래스 및 메서드
 
-### ExcelScraperMerger 클래스
+### ExcelProcessor 클래스 (excel_processor.py)
 
 #### 주요 메서드
 
-- `download_excel_file(url, filename)`: URL에서 엑셀 파일 다운로드
-- `process_excel_file(filepath, sheet_name)`: 엑셀 파일 읽기 및 처리
-- `add_source_column(df, source_name)`: 출처 컬럼 추가
-- `download_all_files()`: 모든 URL에서 파일 다운로드
-- `process_all_files(downloaded_files)`: 다운로드된 모든 파일 처리
-- `merge_dataframes(dataframes)`: 여러 데이터프레임 병합
-- `save_to_excel(df, filename)`: 엑셀 파일로 저장
-- `run(merge)`: 전체 프로세스 실행
+- `get_week_number()`: 현재 주차 계산 (W47 형식)
+- `read_test_file(filepath, test_name)`: 테스트 파일 읽기 및 컬럼 추출
+- `read_model_manager_file(filepath)`: 모델담당자 파일 읽기
+- `merge_test_files()`: 모든 테스트 파일 병합 및 PRA 정렬
+- `vlookup_model_manager(merged_df)`: VLOOKUP으로 모델담당자 정보 매칭
+- `save_result(df, output_path)`: 결과를 엑셀 파일로 저장
+- `process()`: 전체 프로세스 실행
 
-## 코드 사용 예제
+## 처리 프로세스
 
-### 기본 사용
+1. **파일 업로드**: 사용자가 웹 인터페이스를 통해 파일 업로드
+2. **파일 읽기**: 각 테스트 파일에서 필요한 8개 컬럼 추출
+3. **데이터 병합**: 3개의 테스트 파일을 하나로 결합
+4. **PRA 정렬**: PRA 컬럼 기준 오름차순 정렬
+5. **VLOOKUP**: 개발모델명 기준으로 모델담당자 정보 매칭
+6. **파일 저장**: W{주차}_FA_과제일정.xlsx 형식으로 저장
+7. **다운로드 제공**: 사용자에게 다운로드 링크 제공
 
-```python
-from excel_scraper_merger import ExcelScraperMerger
+## API 엔드포인트
 
-# 인스턴스 생성
-scraper = ExcelScraperMerger()
+### GET /
+메인 페이지 (파일 업로드 인터페이스)
 
-# URL 설정
-scraper.urls['Field_Protocol_Driving_Test'] = 'https://example.com/file1.xlsx'
-scraper.urls['Field_Protocol_Stationary_Call_Test'] = 'https://example.com/file2.xlsx'
-scraper.urls['Field_Protocol_VQ_Test'] = 'https://example.com/file3.xlsx'
+### POST /upload
+파일 업로드 및 처리
 
-# 실행
-result = scraper.run(merge=True)
-print(f"결과 파일: {result}")
+**요청**:
+- Content-Type: multipart/form-data
+- Files:
+  - driving_test (선택)
+  - stationary_call_test (선택)
+  - vq_test (선택)
+  - model_manager (선택)
+
+**응답**:
+```json
+{
+  "success": true,
+  "message": "파일 처리가 완료되었습니다.",
+  "filename": "W47_FA_과제일정.xlsx",
+  "download_url": "/download/W47_FA_과제일정.xlsx"
+}
 ```
 
-### 개별 파일 처리
-
-```python
-scraper = ExcelScraperMerger()
-scraper.urls['Field_Protocol_Driving_Test'] = 'https://example.com/file1.xlsx'
-
-# 파일 다운로드
-filepath = scraper.download_excel_file(
-    scraper.urls['Field_Protocol_Driving_Test'],
-    'driving_test.xlsx'
-)
-
-# 파일 처리
-df = scraper.process_excel_file(filepath)
-
-# 출처 추가
-df = scraper.add_source_column(df, 'Field_Protocol_Driving_Test')
-
-# 저장
-scraper.save_to_excel(df, 'processed_driving_test.xlsx')
-```
-
-### 커스텀 데이터 가공
-
-```python
-scraper = ExcelScraperMerger()
-
-# 파일 다운로드 및 처리
-downloaded_files = scraper.download_all_files()
-processed_data = []
-
-for name, filepath in downloaded_files.items():
-    df = scraper.process_excel_file(filepath)
-
-    # 커스텀 데이터 가공 예시
-    # 특정 컬럼만 선택
-    # df = df[['컬럼1', '컬럼2', '컬럼3']]
-
-    # 조건에 맞는 행만 필터링
-    # df = df[df['컬럼1'] > 100]
-
-    # 새로운 컬럼 추가
-    # df['새컬럼'] = df['컬럼1'] * 2
-
-    df = scraper.add_source_column(df, name)
-    processed_data.append(df)
-
-# 병합 및 저장
-merged_df = scraper.merge_dataframes(processed_data)
-scraper.save_to_excel(merged_df, 'custom_merged.xlsx')
-```
-
-## 출력 파일
-
-### 병합 모드 (merge=True)
-- `output/merged_field_protocols.xlsx`: 모든 파일이 병합된 결과 파일
-- 각 행의 `Source` 컬럼에서 데이터의 출처 확인 가능
-
-### 개별 모드 (merge=False)
-- `output/Field_Protocol_Driving_Test_processed.xlsx`
-- `output/Field_Protocol_Stationary_Call_Test_processed.xlsx`
-- `output/Field_Protocol_VQ_Test_processed.xlsx`
-
-## 로그
-
-프로그램 실행 중 다음과 같은 로그가 출력됩니다:
-
-```
-2025-11-17 10:00:00 - INFO - === Excel Scraper and Merger 시작 ===
-2025-11-17 10:00:01 - INFO - 1. 파일 다운로드 중...
-2025-11-17 10:00:02 - INFO - 다운로드 시작: Field_Protocol_Driving_Test.xlsx
-2025-11-17 10:00:05 - INFO - 다운로드 완료: downloads/Field_Protocol_Driving_Test.xlsx
-...
-2025-11-17 10:00:20 - INFO - === 완료 ===
-```
+### GET /download/<filename>
+결과 파일 다운로드
 
 ## 에러 처리
 
-프로그램은 다음과 같은 상황을 처리합니다:
+프로그램은 다음과 같은 상황을 자동으로 처리합니다:
 
-- URL이 설정되지 않은 경우
-- 파일 다운로드 실패
-- 파일이 존재하지 않는 경우
-- 엑셀 파일 읽기 실패
-- 병합 실패
-- 파일 저장 실패
+- ❌ 파일이 업로드되지 않은 경우
+- ❌ 필요한 컬럼이 누락된 경우 (경고 후 빈 값으로 처리)
+- ❌ 파일 형식이 올바르지 않은 경우
+- ❌ 모델담당자 파일이 없는 경우 (빈 값으로 처리)
+- ❌ VLOOKUP 매칭 실패 (빈 값으로 처리)
 
-모든 에러는 로그로 기록되며, 프로그램은 가능한 파일만 처리합니다.
+모든 에러는 로그로 기록되며, 사용자에게 적절한 메시지가 표시됩니다.
+
+## 로그
+
+서버 실행 중 콘솔에 상세한 로그가 출력됩니다:
+
+```
+2025-11-17 10:00:00 - INFO - === Excel 처리 시작 ===
+2025-11-17 10:00:01 - INFO - 파일 읽기 중: Driving_Test
+2025-11-17 10:00:02 - INFO - 추출 완료: Driving_Test - 50 행
+2025-11-17 10:00:03 - INFO - 3개의 테스트 파일 병합 중...
+2025-11-17 10:00:04 - INFO - PRA 컬럼으로 정렬 완료
+2025-11-17 10:00:05 - INFO - 모델담당자 매칭 완료: 120/150 행
+2025-11-17 10:00:06 - INFO - === 처리 완료 ===
+```
 
 ## 주의사항
 
-1. URL은 반드시 실제 다운로드 가능한 엑셀 파일 주소여야 합니다
-2. 파일 크기가 큰 경우 다운로드 시간이 오래 걸릴 수 있습니다
-3. 인터넷 연결이 필요합니다
-4. 엑셀 파일 형식은 .xlsx 또는 .xls를 지원합니다
+1. 파일 크기는 16MB로 제한됩니다
+2. 엑셀 파일 형식은 .xlsx 또는 .xls만 지원됩니다
+3. 컬럼명은 정확히 일치해야 합니다
+4. PRA 컬럼은 정렬 기준이므로 중요합니다
+5. 개발모델명은 VLOOKUP 키로 사용되므로 정확해야 합니다
+
+## 트러블슈팅
+
+### 파일 업로드가 안 될 때
+- 파일 크기가 16MB 이하인지 확인
+- 파일 확장자가 .xlsx 또는 .xls인지 확인
+
+### 컬럼이 누락된다고 할 때
+- 입력 파일의 컬럼명이 정확한지 확인
+- 공백이나 오타가 없는지 확인
+
+### VLOOKUP이 안 될 때
+- 모델담당자 파일의 개발모델명이 테스트 파일과 일치하는지 확인
+- 개발모델명에 공백이나 특수문자가 없는지 확인
+
+## 기술 스택
+
+- **Backend**: Python 3.8+, Flask 3.0+
+- **Data Processing**: Pandas 2.0+, OpenPyXL 3.1+
+- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
 
 ## 라이센스
 
 MIT License
+
+## 개발자
+
+Monday Team
 
 ## 문의
 

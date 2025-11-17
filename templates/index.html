@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel 병합 서버</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .upload-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            color: #667eea;
+            margin-bottom: 15px;
+            font-weight: 600;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 8px;
+        }
+
+        .file-upload-group {
+            margin-bottom: 20px;
+        }
+
+        .file-upload-item {
+            margin-bottom: 15px;
+        }
+
+        .file-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-input-button {
+            display: inline-block;
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .file-input-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-name {
+            display: block;
+            margin-top: 8px;
+            color: #666;
+            font-size: 13px;
+            font-style: italic;
+        }
+
+        .submit-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(245, 87, 108, 0.4);
+        }
+
+        .submit-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .download-button {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 20px;
+            background: #28a745;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .download-button:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            color: #2196F3;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            color: #333;
+            font-size: 13px;
+        }
+
+        .info-box li {
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 FA 과제일정 엑셀 병합 시스템</h1>
+        <p class="subtitle">3개의 테스트 파일을 업로드하여 병합된 과제일정을 생성하세요</p>
+
+        <div class="info-box">
+            <h3>📌 사용 안내</h3>
+            <ul>
+                <li>3개의 테스트 파일 중 최소 1개 이상 업로드 필수</li>
+                <li>모델담당자 파일은 선택사항입니다</li>
+                <li>결과 파일명: W{주차}_FA_과제일정.xlsx (예: W47_FA_과제일정.xlsx)</li>
+                <li>추출 컬럼: 검증항목, 과제명, 개발모델명, 검증단계, PRA, 외뢰일, 완료요청일, 검증 PL, 모델담당자, AP/CP</li>
+            </ul>
+        </div>
+
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-section">
+                <div class="section-title">🧪 테스트 파일 업로드</div>
+                <div class="file-upload-group">
+                    <div class="file-upload-item">
+                        <label class="file-label">Driving_Test</label>
+                        <div class="file-input-wrapper">
+                            <label for="driving_test" class="file-input-button">
+                                파일 선택
+                            </label>
+                            <input type="file" id="driving_test" name="driving_test" accept=".xlsx,.xls">
+                            <span class="file-name" id="driving_test_name">선택된 파일 없음</span>
+                        </div>
+                    </div>
+
+                    <div class="file-upload-item">
+                        <label class="file-label">Stationary_Call_Test</label>
+                        <div class="file-input-wrapper">
+                            <label for="stationary_call_test" class="file-input-button">
+                                파일 선택
+                            </label>
+                            <input type="file" id="stationary_call_test" name="stationary_call_test" accept=".xlsx,.xls">
+                            <span class="file-name" id="stationary_call_test_name">선택된 파일 없음</span>
+                        </div>
+                    </div>
+
+                    <div class="file-upload-item">
+                        <label class="file-label">VQ_Test</label>
+                        <div class="file-input-wrapper">
+                            <label for="vq_test" class="file-input-button">
+                                파일 선택
+                            </label>
+                            <input type="file" id="vq_test" name="vq_test" accept=".xlsx,.xls">
+                            <span class="file-name" id="vq_test_name">선택된 파일 없음</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="upload-section">
+                <div class="section-title">👥 모델담당자 파일 업로드 (선택사항)</div>
+                <div class="file-upload-item">
+                    <label class="file-label">모델담당자.xlsx</label>
+                    <div class="file-input-wrapper">
+                        <label for="model_manager" class="file-input-button">
+                            파일 선택
+                        </label>
+                        <input type="file" id="model_manager" name="model_manager" accept=".xlsx,.xls">
+                        <span class="file-name" id="model_manager_name">선택된 파일 없음</span>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-button">📥 파일 병합 시작</button>
+        </form>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 10px; color: #667eea;">처리 중...</p>
+        </div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        // 파일 선택 시 파일명 표시
+        const fileInputs = ['driving_test', 'stationary_call_test', 'vq_test', 'model_manager'];
+
+        fileInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            const nameSpan = document.getElementById(inputId + '_name');
+
+            input.addEventListener('change', function(e) {
+                if (this.files && this.files[0]) {
+                    nameSpan.textContent = this.files[0].name;
+                    nameSpan.style.color = '#28a745';
+                } else {
+                    nameSpan.textContent = '선택된 파일 없음';
+                    nameSpan.style.color = '#666';
+                }
+            });
+        });
+
+        // 폼 제출 처리
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitButton = this.querySelector('.submit-button');
+            const loading = document.getElementById('loading');
+            const message = document.getElementById('message');
+
+            // 최소 1개의 테스트 파일이 있는지 확인
+            const hasFile = formData.get('driving_test')?.size > 0 ||
+                          formData.get('stationary_call_test')?.size > 0 ||
+                          formData.get('vq_test')?.size > 0;
+
+            if (!hasFile) {
+                showMessage('error', '최소 1개 이상의 테스트 파일을 선택해주세요.');
+                return;
+            }
+
+            // UI 업데이트
+            submitButton.disabled = true;
+            loading.style.display = 'block';
+            message.style.display = 'none';
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('success',
+                        result.message +
+                        `<br><a href="${result.download_url}" class="download-button">📥 ${result.filename} 다운로드</a>`
+                    );
+                } else {
+                    showMessage('error', result.message);
+                }
+            } catch (error) {
+                showMessage('error', '서버 오류가 발생했습니다: ' + error.message);
+            } finally {
+                submitButton.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+
+        function showMessage(type, text) {
+            const message = document.getElementById('message');
+            message.className = 'message ' + type;
+            message.innerHTML = text;
+            message.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

@@ -26,6 +26,7 @@ wheels/
 # 다운로드 및 출력 디렉토리
 downloads/
 output/
+uploads/
 
 # IDE
 .vscode/
