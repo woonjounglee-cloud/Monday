@@ -413,6 +413,14 @@ class ExcelProcessor:
                 if 'AP/CP_lookup' in result_df.columns:
                     schedule_df['AP/CP'] = result_df['AP/CP_lookup'].fillna('')
 
+                # 송수화 시험은 모델담당자를 무조건 '이운정'으로 설정
+                if '검증항목' in schedule_df.columns:
+                    songsuha_mask = schedule_df['검증항목'].astype(str).str.contains('송수화', na=False)
+                    songsuha_count = songsuha_mask.sum()
+                    if songsuha_count > 0:
+                        schedule_df.loc[songsuha_mask, '모델담당자'] = '이운정'
+                        logger.info(f"송수화 시험 모델담당자 '이운정'으로 설정: {songsuha_count} 행")
+
                 matched_count = (schedule_df['모델담당자'] != '').sum()
                 logger.info(f"모델담당자 매칭 완료: {matched_count}/{len(schedule_df)} 행")
 

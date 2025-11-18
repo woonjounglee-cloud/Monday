@@ -49,6 +49,9 @@ MODEL_DB_PATH = os.path.join(DB_FOLDER, 'model_manager.xlsx')
 # 검증허브 URL (사용자가 수정 가능)
 TESTHUB_URL = os.getenv('TESTHUB_URL', 'https://example.com')  # 실제 URL로 변경 필요
 
+# 검증허브 처리 결과 저장용 전역 변수
+last_testhub_result = None
+
 
 def allowed_file(filename):
     """허용된 파일 확장자인지 확인"""
@@ -586,10 +589,22 @@ def open_testhub():
 
             return None
 
+        # 다운로드 경로 설정
+        download_dir = r'C:\Users\user\PycharmProjects\FP_Manager'
+
         # Edge WebDriver 설정
         edge_options = EdgeOptions()
         # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
         # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
+
+        # 다운로드 폴더 설정
+        prefs = {
+            'download.default_directory': download_dir,
+            'download.prompt_for_download': False,
+            'download.directory_upgrade': True,
+            'safebrowsing.enabled': True
+        }
+        edge_options.add_experimental_option('prefs', prefs)
 
         # WebDriver 초기화
         driver = None
@@ -634,7 +649,8 @@ def open_testhub():
                     '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[5]/a/input',
                     '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
                     '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
-                    '//*[@id="searchBtn"]'
+                    '//*[@id="searchBtn"]',
+                    '//*[@id="excelBtn"]'  # 엑셀 다운로드 버튼
                 ]
 
                 # 각 요소를 순서대로 클릭
@@ -643,16 +659,93 @@ def open_testhub():
                         # 요소가 클릭 가능할 때까지 대기
                         element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
                         element.click()
-                        logger.info(f"클릭 완료 ({i}/5): {xpath}")
+                        logger.info(f"클릭 완료 ({i}/6): {xpath}")
 
                         # 각 클릭 후 대기 (페이지 반응 대기)
                         time.sleep(1)
 
                     except Exception as e:
-                        logger.error(f"요소 클릭 실패 ({i}/5): {xpath} - {e}")
+                        logger.error(f"요소 클릭 실패 ({i}/6): {xpath} - {e}")
                         # 클릭 실패해도 계속 진행
 
-                logger.info("자동 클릭 완료")
+                logger.info("자동 클릭 완료 (엑셀 다운로드 버튼 포함)")
+
+                # 파일 다운로드 대기 (5초)
+                logger.info("파일 다운로드 대기 중...")
+                time.sleep(5)
+
+                # 다운로드된 파일 찾기
+                download_path = download_dir
+                if os.path.exists(download_path):
+                    # 가장 최근 다운로드된 엑셀 파일 찾기
+                    excel_files = []
+                    for file in os.listdir(download_path):
+                        if file.endswith(('.xlsx', '.xls')) and not file.startswith('~$'):
+                            file_path = os.path.join(download_path, file)
+                            excel_files.append((file_path, os.path.getmtime(file_path)))
+
+                    if excel_files:
+                        # 가장 최근 파일 선택
+                        latest_file = max(excel_files, key=lambda x: x[1])[0]
+                        logger.info(f"다운로드된 파일 발견: {latest_file}")
+
+                        # 파일 처리
+                        try:
+                            from excel_processor import ExcelProcessor
+
+                            processor = ExcelProcessor()
+
+                            # 모델담당자 DB 로드
+                            processor.model_manager_df = load_model_database()
+
+                            # 파일 처리
+                            output_filename = generate_output_filename()
+                            output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+
+                            success = processor.process_schedule(latest_file, output_path)
+
+                            if success and processor.schedule_df is not None:
+                                logger.info("검증허브 다운로드 파일 처리 완료")
+
+                                # 결과를 전역 변수에 저장 (클라이언트가 조회할 수 있도록)
+                                global last_testhub_result
+                                last_testhub_result = {
+                                    'success': True,
+                                    'data': processor.schedule_df.to_dict('records'),
+                                    'filename': output_filename,
+                                    'download_url': f'/download/{output_filename}',
+                                    'timestamp': time.time()
+                                }
+                            else:
+                                logger.error("파일 처리 실패")
+                                last_testhub_result = {
+                                    'success': False,
+                                    'message': '파일 처리 중 오류가 발생했습니다.',
+                                    'timestamp': time.time()
+                                }
+                        except Exception as proc_error:
+                            logger.error(f"파일 처리 중 오류: {proc_error}")
+                            import traceback
+                            logger.error(traceback.format_exc())
+                            last_testhub_result = {
+                                'success': False,
+                                'message': f'파일 처리 중 오류: {str(proc_error)}',
+                                'timestamp': time.time()
+                            }
+                    else:
+                        logger.warning("다운로드된 엑셀 파일을 찾을 수 없습니다")
+                        last_testhub_result = {
+                            'success': False,
+                            'message': '다운로드된 엑셀 파일을 찾을 수 없습니다.',
+                            'timestamp': time.time()
+                        }
+                else:
+                    logger.warning(f"다운로드 폴더가 존재하지 않습니다: {download_path}")
+                    last_testhub_result = {
+                        'success': False,
+                        'message': f'다운로드 폴더가 존재하지 않습니다: {download_path}',
+                        'timestamp': time.time()
+                    }
 
                 # 브라우저는 열어둠 (사용자가 계속 사용할 수 있도록)
                 # driver.quit()  # 주석 처리하여 브라우저를 닫지 않음
@@ -682,6 +775,26 @@ def open_testhub():
             'success': False,
             'message': f'오류 발생: {str(e)}'
         }), 500
+
+
+@app.route('/api/testhub-result', methods=['GET'])
+def get_testhub_result():
+    """검증허브 처리 결과 조회"""
+    global last_testhub_result
+
+    if last_testhub_result is None:
+        return jsonify({
+            'ready': False,
+            'message': '처리 중이거나 결과가 없습니다.'
+        })
+
+    result = last_testhub_result.copy()
+    result['ready'] = True
+
+    # 결과 반환 후 초기화 (한 번만 조회 가능)
+    # last_testhub_result = None
+
+    return jsonify(result)
 
 
 if __name__ == '__main__':

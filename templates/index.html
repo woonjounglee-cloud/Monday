@@ -696,7 +696,43 @@
                 console.log('API 응답 결과:', result);
 
                 if (result.success) {
-                    showMessage('scheduleMessage', 'success', result.message);
+                    showMessage('scheduleMessage', 'success', result.message + '\n\n파일 다운로드 및 처리 중입니다...');
+
+                    // 결과 polling 시작 (3초 후부터 2초 간격으로 최대 20회)
+                    let pollCount = 0;
+                    const maxPolls = 20;
+
+                    const pollInterval = setInterval(async () => {
+                        pollCount++;
+                        console.log(`결과 조회 시도 ${pollCount}/${maxPolls}`);
+
+                        try {
+                            const resultResponse = await fetch('/api/testhub-result');
+                            const resultData = await resultResponse.json();
+
+                            if (resultData.ready && resultData.success) {
+                                clearInterval(pollInterval);
+                                console.log('처리 결과 수신:', resultData);
+
+                                // 결과 표시
+                                displaySchedulePreview(resultData.data);
+                                currentScheduleDownloadUrl = resultData.download_url;
+                                showMessage('scheduleMessage', 'success',
+                                    '검증허브 파일 처리 완료!\n결과 파일: ' + resultData.filename);
+                            } else if (resultData.ready && !resultData.success) {
+                                clearInterval(pollInterval);
+                                showMessage('scheduleMessage', 'error',
+                                    '파일 처리 실패: ' + (resultData.message || '알 수 없는 오류'));
+                            } else if (pollCount >= maxPolls) {
+                                clearInterval(pollInterval);
+                                showMessage('scheduleMessage', 'warning',
+                                    '처리 시간이 초과되었습니다. 수동으로 확인해주세요.');
+                            }
+                        } catch (pollError) {
+                            console.error('결과 조회 실패:', pollError);
+                        }
+                    }, 2000);  // 2초마다 조회
+
                 } else {
                     showMessage('scheduleMessage', 'error', result.message);
                 }
