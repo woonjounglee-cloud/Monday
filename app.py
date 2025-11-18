@@ -13,6 +13,7 @@ import logging
 from datetime import datetime
 import subprocess
 import platform
+import webbrowser
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -548,9 +549,26 @@ def open_testhub():
         system = platform.system()
 
         if system == 'Windows':
-            # Windows에서 Edge 실행
-            subprocess.Popen(['cmd', '/c', 'start', 'msedge', url], shell=True)
-            logger.info(f"Microsoft Edge로 TestHub 열기: {url}")
+            # Windows에서 Edge 실행 (한글 URL 지원)
+            # 가능한 Edge 설치 경로들
+            edge_paths = [
+                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+                'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+            ]
+
+            edge_found = False
+            for edge_path in edge_paths:
+                if os.path.exists(edge_path):
+                    # Edge 실행 파일을 직접 실행
+                    subprocess.Popen([edge_path, url])
+                    logger.info(f"Microsoft Edge로 TestHub 열기: {url}")
+                    edge_found = True
+                    break
+
+            if not edge_found:
+                # Edge 경로를 찾을 수 없으면 webbrowser 사용
+                webbrowser.open(url)
+                logger.info(f"기본 브라우저로 TestHub 열기: {url}")
         elif system == 'Darwin':  # macOS
             subprocess.Popen(['open', '-a', 'Microsoft Edge', url])
             logger.info(f"Microsoft Edge로 TestHub 열기 (macOS): {url}")
@@ -559,7 +577,7 @@ def open_testhub():
             try:
                 subprocess.Popen(['microsoft-edge', url])
             except FileNotFoundError:
-                subprocess.Popen(['xdg-open', url])
+                webbrowser.open(url)
             logger.info(f"브라우저로 TestHub 열기 (Linux): {url}")
         else:
             return jsonify({
