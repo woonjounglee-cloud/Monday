@@ -565,7 +565,7 @@
                         <div class="section-title">📊 일정 파일 업로드</div>
 
                         <div class="form-group">
-                            <label class="form-label">Download File</label>
+                            <label class="form-label">Upload File</label>
                             <div class="file-input-wrapper">
                                 <label for="schedule_file" class="file-input-button">파일 선택</label>
                                 <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
@@ -896,16 +896,16 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    // 다운로드 URL로 새 창 열기 (파일 다운로드)
-                    window.open(result.download_url, '_blank');
+                    // 폴더가 열렸음을 알림
                     showMessage('scheduleMessage', 'success', result.message);
-                    console.log('결과 파일 다운로드:', result.filename);
+                    console.log('폴더 열기 성공:', result.folder_path);
+                    console.log('결과 파일:', result.filename);
                 } else {
                     showMessage('scheduleMessage', 'error', result.message);
                 }
             } catch (error) {
-                console.error('결과 파일 다운로드 에러:', error);
-                showMessage('scheduleMessage', 'error', '결과 파일 다운로드 실패: ' + error.message);
+                console.error('폴더 열기 에러:', error);
+                showMessage('scheduleMessage', 'error', '폴더 열기 실패: ' + error.message);
             }
         }
 

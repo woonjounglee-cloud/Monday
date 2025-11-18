@@ -954,7 +954,7 @@ def get_testhub_result():
 
 @app.route('/api/open-output-folder', methods=['POST'])
 def open_output_folder():
-    """현재 주차의 결과 파일 다운로드"""
+    """현재 주차의 결과 파일 확인 후 output 폴더를 탐색기로 열기"""
     try:
         # 현재 주차 계산
         from excel_processor import ExcelProcessor
@@ -980,24 +980,37 @@ def open_output_folder():
                 'message': f'결과 파일을 찾을 수 없습니다: {filename}\n먼저 파일을 처리해주세요.'
             }), 404
 
-        # 다운로드 URL 반환
-        download_url = f'/download/{filename}'
-        logger.info(f"결과 파일 다운로드 URL 제공: {download_url}")
+        # OUTPUT_FOLDER의 절대 경로 구하기
+        abs_output_folder = os.path.abspath(OUTPUT_FOLDER)
+
+        # 운영체제에 따라 폴더 열기
+        system = platform.system()
+
+        if system == 'Windows':
+            # Windows: explorer 명령어로 새 창으로 포커스를 받으며 열기
+            subprocess.Popen(['explorer', abs_output_folder])
+            logger.info(f"Windows 탐색기로 폴더 열기: {abs_output_folder}")
+        elif system == 'Darwin':  # macOS
+            subprocess.Popen(['open', abs_output_folder])
+            logger.info(f"macOS Finder로 폴더 열기: {abs_output_folder}")
+        else:  # Linux
+            subprocess.Popen(['xdg-open', abs_output_folder])
+            logger.info(f"Linux 파일 관리자로 폴더 열기: {abs_output_folder}")
 
         return jsonify({
             'success': True,
-            'message': f'결과 파일을 다운로드합니다: {filename}',
-            'download_url': download_url,
+            'message': f'폴더를 열었습니다: {abs_output_folder}',
+            'folder_path': abs_output_folder,
             'filename': filename
         })
 
     except Exception as e:
-        logger.error(f"결과 파일 다운로드 준비 실패: {e}")
+        logger.error(f"폴더 열기 실패: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
-            'message': f'결과 파일 다운로드 준비 실패: {str(e)}'
+            'message': f'폴더 열기 실패: {str(e)}'
         }), 500
 
 
