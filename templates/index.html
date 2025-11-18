@@ -896,14 +896,16 @@
                 const result = await response.json();
 
                 if (result.success) {
+                    // 다운로드 URL로 새 창 열기 (파일 다운로드)
+                    window.open(result.download_url, '_blank');
                     showMessage('scheduleMessage', 'success', result.message);
-                    console.log('폴더 열기 성공:', result.folder_path);
+                    console.log('결과 파일 다운로드:', result.filename);
                 } else {
                     showMessage('scheduleMessage', 'error', result.message);
                 }
             } catch (error) {
-                console.error('폴더 열기 에러:', error);
-                showMessage('scheduleMessage', 'error', '폴더 열기 실패: ' + error.message);
+                console.error('결과 파일 다운로드 에러:', error);
+                showMessage('scheduleMessage', 'error', '결과 파일 다운로드 실패: ' + error.message);
             }
         }
 

@@ -954,45 +954,50 @@ def get_testhub_result():
 
 @app.route('/api/open-output-folder', methods=['POST'])
 def open_output_folder():
-    """결과 파일이 저장된 output 폴더를 탐색기로 열기"""
+    """현재 주차의 결과 파일 다운로드"""
     try:
-        # OUTPUT_FOLDER의 절대 경로 구하기
-        abs_output_folder = os.path.abspath(OUTPUT_FOLDER)
+        # 현재 주차 계산
+        from excel_processor import ExcelProcessor
+        processor = ExcelProcessor()
+        week_number = processor.get_week_number()
 
-        # 폴더가 존재하는지 확인
-        if not os.path.exists(abs_output_folder):
+        # 파일명 생성
+        filename = f"{week_number}_FA_과제일정.xlsx"
+        filepath = os.path.join(OUTPUT_FOLDER, filename)
+        abs_filepath = os.path.abspath(filepath)
+
+        # 파일 존재 확인
+        if not os.path.exists(abs_filepath):
+            logger.warning(f"결과 파일을 찾을 수 없음: {abs_filepath}")
+
+            # output 폴더의 모든 파일 목록 로그
+            if os.path.exists(OUTPUT_FOLDER):
+                files = os.listdir(OUTPUT_FOLDER)
+                logger.info(f"OUTPUT_FOLDER 내용: {files}")
+
             return jsonify({
                 'success': False,
-                'message': f'폴더를 찾을 수 없습니다: {abs_output_folder}'
+                'message': f'결과 파일을 찾을 수 없습니다: {filename}\n먼저 파일을 처리해주세요.'
             }), 404
 
-        # 운영체제에 따라 폴더 열기
-        system = platform.system()
-
-        if system == 'Windows':
-            # Windows: explorer 명령어로 새 창으로 포커스를 받으며 열기
-            subprocess.Popen(['explorer', abs_output_folder])
-            logger.info(f"Windows 탐색기로 폴더 열기: {abs_output_folder}")
-        elif system == 'Darwin':  # macOS
-            subprocess.Popen(['open', abs_output_folder])
-            logger.info(f"macOS Finder로 폴더 열기: {abs_output_folder}")
-        else:  # Linux
-            subprocess.Popen(['xdg-open', abs_output_folder])
-            logger.info(f"Linux 파일 관리자로 폴더 열기: {abs_output_folder}")
+        # 다운로드 URL 반환
+        download_url = f'/download/{filename}'
+        logger.info(f"결과 파일 다운로드 URL 제공: {download_url}")
 
         return jsonify({
             'success': True,
-            'message': f'폴더를 열었습니다: {abs_output_folder}',
-            'folder_path': abs_output_folder
+            'message': f'결과 파일을 다운로드합니다: {filename}',
+            'download_url': download_url,
+            'filename': filename
         })
 
     except Exception as e:
-        logger.error(f"폴더 열기 실패: {e}")
+        logger.error(f"결과 파일 다운로드 준비 실패: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
             'success': False,
-            'message': f'폴더 열기 실패: {str(e)}'
+            'message': f'결과 파일 다운로드 준비 실패: {str(e)}'
         }), 500
 
 
