@@ -293,12 +293,13 @@ class ExcelProcessor:
         item_str = str(verification_item).strip()
 
         # 키워드로 항목 찾기 (띄어쓰기 변형 대응)
+        # 주의: '송수화' 검사를 '송수신'보다 먼저 해야 함
         if '주행' in item_str:
             return 1
-        elif '고정점' in item_str or '송수신' in item_str:
-            return 2
         elif '송수화' in item_str:
             return 3
+        elif '고정점' in item_str or '송수신' in item_str:
+            return 2
 
         # 매칭되지 않으면 낮은 우선순위
         return 999
@@ -527,7 +528,10 @@ class ExcelProcessor:
             # 4. VLOOKUP으로 모델담당자 정보 매칭
             result_df = self.vlookup_model_manager(sorted_df)
 
-            # 5. 결과 저장
+            # 5. 정렬 및 VLOOKUP 결과를 schedule_df에 저장 (화면 표시용)
+            self.schedule_df = result_df
+
+            # 6. 결과 저장
             success = self.save_result(result_df, output_path)
 
             if success:
