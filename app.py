@@ -658,6 +658,17 @@ def open_testhub():
         def automate_clicks():
             global last_testhub_result  # 함수 시작 부분에 global 선언
             try:
+                # 1. 다운로드 폴더의 기존 TGVerifyDetailList 파일 삭제
+                try:
+                    if os.path.exists(download_dir):
+                        for file in os.listdir(download_dir):
+                            if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
+                                file_path = os.path.join(download_dir, file)
+                                os.remove(file_path)
+                                logger.info(f"기존 파일 삭제: {file_path}")
+                except Exception as del_error:
+                    logger.warning(f"기존 파일 삭제 실패 (계속 진행): {del_error}")
+
                 # CDP 명령으로 다운로드 동작 설정 (자동 다운로드, 팝업 없음)
                 try:
                     driver.execute_cdp_cmd('Page.setDownloadBehavior', {
@@ -682,7 +693,7 @@ def open_testhub():
                     '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
                     '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
                     '//*[@id="searchBtn"]',
-                    '//*[@id="excelBtn"]'  # 엑셀 다운로드 버튼
+                    '//*[@id="excelBtn"]/span'  # 엑셀 다운로드 버튼
                 ]
 
                 # 각 요소를 순서대로 클릭
@@ -810,16 +821,14 @@ def open_testhub():
 
                             processor = ExcelProcessor()
 
-                            # 모델담당자 DB 로드
-                            processor.model_manager_df = load_model_database()
-
                             # 출력 파일명 생성 (주차 계산)
                             week_number = processor.get_week_number()
                             output_filename = f"{week_number}_FA_과제일정.xlsx"
                             output_path = os.path.join(OUTPUT_FOLDER, output_filename)
                             logger.info(f"출력 파일 경로: {output_path}")
 
-                            success = processor.process_schedule(latest_file, output_path)
+                            # 처리 실행 (process 메서드 사용)
+                            success = processor.process(latest_file, MODEL_DB_PATH, output_path)
 
                             if success and processor.schedule_df is not None:
                                 logger.info("검증허브 다운로드 파일 처리 완료")
