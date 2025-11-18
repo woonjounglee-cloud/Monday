@@ -565,7 +565,7 @@
                         <div class="section-title">📊 일정 파일 업로드</div>
 
                         <div class="form-group">
-                            <label class="form-label">Schedule_File</label>
+                            <label class="form-label">Download File</label>
                             <div class="file-input-wrapper">
                                 <label for="schedule_file" class="file-input-button">파일 선택</label>
                                 <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
@@ -864,6 +864,17 @@
             ).join('');
 
             container.style.display = 'block';
+        }
+
+        function displaySchedulePreview(data) {
+            // 검증허브 결과 데이터를 표시하는 함수
+            schedulePreviewData = data;
+            const resultSection = document.getElementById('scheduleResult');
+            const resultInfo = document.getElementById('scheduleResultInfo');
+
+            resultInfo.textContent = `총 ${data.total_rows}개 행`;
+            resultSection.style.display = 'block';
+            showSchedulePreview();
         }
 
         function downloadScheduleFile() {

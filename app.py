@@ -854,9 +854,14 @@ def open_testhub():
                                 logger.info("검증허브 다운로드 파일 처리 완료")
 
                                 # 결과를 전역 변수에 저장 (클라이언트가 조회할 수 있도록)
+                                # 데이터프레임을 columns, rows 형식으로 변환 (/preview와 동일한 형식)
                                 last_testhub_result = {
                                     'success': True,
-                                    'data': processor.schedule_df.to_dict('records'),
+                                    'data': {
+                                        'columns': processor.schedule_df.columns.tolist(),
+                                        'rows': processor.schedule_df.fillna('').astype(str).values.tolist(),
+                                        'total_rows': len(processor.schedule_df)
+                                    },
                                     'filename': output_filename,
                                     'download_url': f'/download/{output_filename}',
                                     'timestamp': time.time()
