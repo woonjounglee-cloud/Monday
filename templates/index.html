@@ -697,6 +697,16 @@
                         <input type="number" id="additionalOtHours" placeholder="추가 OT 시간 입력"
                                oninput="calculateOT()" min="0" step="0.5">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">D-Day 사용</label>
+                        <div style="padding-top: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="useDDay" onchange="calculateOT()"
+                                       style="width: 20px; height: 20px; cursor: pointer;">
+                                <span>D-Day 사용 (OT -8시간)</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="table-container">
@@ -731,6 +741,7 @@
 
                 <div class="message" style="margin-top: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; font-size: 14px;">
                     <strong>📌 계산 공식</strong><br>
+                    • D-Day 사용 체크 시: OT 시간에서 -8시간 적용<br>
                     • 세전수당 = (OT 시간 - 14) × 25,000 × 1.5<br>
                     • 총 입금(세후) = 세전수당 × 0.76 (24% 세금 공제)<br>
                     • 하트 표시: ≤26시간 ❤️ | 27~38시간 ❤️❤️ | >38시간 ❤️❤️❤️
@@ -974,8 +985,14 @@
 
         function calculateOT() {
             // 입력값 가져오기
-            const otHours = parseFloat(document.getElementById('otHours').value) || 0;
+            let otHours = parseFloat(document.getElementById('otHours').value) || 0;
             const additionalOtHours = parseFloat(document.getElementById('additionalOtHours').value) || 0;
+            const useDDay = document.getElementById('useDDay').checked;
+
+            // D-Day 사용 시 OT 시간에서 -8
+            if (useDDay) {
+                otHours = otHours - 8;
+            }
 
             // 총 OT 시간 계산
             const totalHours = otHours + additionalOtHours;
