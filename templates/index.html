@@ -210,6 +210,33 @@
             background: #218838;
         }
 
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: #c82333;
+            transform: scale(1.1);
+        }
+
+        /* 편집 가능한 셀 스타일 */
+        td[contenteditable="true"]:hover {
+            background: #f0f4ff;
+            outline: 1px solid #667eea;
+        }
+
+        td[contenteditable="true"]:focus {
+            background: #fff;
+            outline: 2px solid #667eea;
+        }
+
         /* 테이블 스타일 */
         .table-container {
             max-height: 500px;
@@ -268,6 +295,32 @@
 
         tbody td:last-child {
             border-right: none;
+        }
+
+        /* Model Info 테이블 컬럼 너비 설정 - 비율 1.4:1.2:1:1:1 */
+        #modelTableContainer table th:nth-child(1),
+        #modelTableContainer table td:nth-child(1) {
+            width: 168px;
+            min-width: 168px;
+            max-width: 168px;
+        }
+
+        #modelTableContainer table th:nth-child(2),
+        #modelTableContainer table td:nth-child(2) {
+            width: 144px;
+            min-width: 144px;
+            max-width: 144px;
+        }
+
+        #modelTableContainer table th:nth-child(3),
+        #modelTableContainer table td:nth-child(3),
+        #modelTableContainer table th:nth-child(4),
+        #modelTableContainer table td:nth-child(4),
+        #modelTableContainer table th:nth-child(5),
+        #modelTableContainer table td:nth-child(5) {
+            width: 120px;
+            min-width: 120px;
+            max-width: 120px;
         }
 
         .message {
@@ -447,22 +500,8 @@
 
         <!-- Schedule 탭 -->
         <div id="scheduleTab" class="tab-content active">
-            <div class="info-box">
-                <h3>📌 사용 안내</h3>
-                <ul>
-                    <li>3개의 테스트 파일 중 최소 1개 이상 업로드 필수</li>
-                    <li>모델담당자 파일은 선택사항입니다</li>
-                    <li>결과 파일명: W{주차}_FA_과제일정.xlsx (예: W47_FA_과제일정.xlsx)</li>
-                    <li>추출 컬럼: 검증항목, 과제명, 개발모델명, 검증단계, PRA, 의뢰일, 완료요청일, 검증 PL, 모델담당자, AP/CP</li>
-                </ul>
-            </div>
-
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="section-title">📊 일정 파일 업로드</div>
-
-                <div class="info-box">
-                    <strong>ℹ️ 안내:</strong> Schedule 파일 1개를 업로드하면 자동으로 db/model_manager.xlsx 데이터베이스와 매칭됩니다.
-                </div>
 
                 <div class="form-group">
                     <label class="form-label">Schedule_File</label>
@@ -487,16 +526,8 @@
 
             <div class="result-section" id="scheduleResult" style="display: none; margin-top: 30px;">
                 <div class="section-title">📋 처리 결과</div>
-                <div class="button-group">
-                    <button class="btn btn-success" onclick="downloadScheduleFile()">
-                        📥 Excel 파일 다운로드
-                    </button>
-                    <button class="btn btn-info" onclick="toggleSchedulePreview()">
-                        👁️ 결과 미리보기
-                    </button>
-                </div>
                 <div class="result-info" id="scheduleResultInfo"></div>
-                <div class="table-container" id="scheduleTableContainer" style="display: none;">
+                <div class="table-container" id="scheduleTableContainer">
                     <table>
                         <thead id="scheduleTableHead"></thead>
                         <tbody id="scheduleTableBody"></tbody>
@@ -512,7 +543,7 @@
                 <div class="search-bar">
                     <div class="form-group">
                         <label class="form-label">과제명 또는 개발모델명</label>
-                        <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요">
+                        <input type="text" id="searchKeyword" placeholder="검색어를 입력하세요" onkeypress="if(event.key==='Enter') searchModel()">
                     </div>
                     <button class="btn btn-primary" onclick="searchModel()">검색</button>
                     <button class="btn btn-info" onclick="loadAllModels()">전체 보기</button>
@@ -536,11 +567,12 @@
                             <th>검증PL</th>
                             <th>모델담당자</th>
                             <th>AP/CP</th>
+                            <th style="width: 80px;">작업</th>
                         </tr>
                     </thead>
                     <tbody id="modelTableBody">
                         <tr>
-                            <td colspan="5" style="padding: 40px; color: #999;">
+                            <td colspan="6" style="padding: 40px; color: #999;">
                                 검색 버튼을 클릭하거나 전체 보기를 선택하세요
                             </td>
                         </tr>
@@ -569,11 +601,7 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">AP/CP *</label>
-                        <select id="addAPCP">
-                            <option value="">선택</option>
-                            <option value="AP">AP</option>
-                            <option value="CP">CP</option>
-                        </select>
+                        <input type="text" id="addAPCP" placeholder="AP 또는 CP">
                     </div>
                 </div>
                 <button class="btn btn-success" onclick="addModelInfo()">
@@ -769,15 +797,90 @@
 
         function displayModelData(data) {
             const tableBody = document.getElementById('modelTableBody');
+            const columns = data.columns; // ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
 
             if (data.total_rows === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" style="padding: 40px; color: #999;">검색 결과가 없습니다</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="6" style="padding: 40px; color: #999;">검색 결과가 없습니다</td></tr>';
                 return;
             }
 
-            tableBody.innerHTML = data.rows.map(row =>
-                '<tr>' + row.map(cell => `<td>${cell}</td>`).join('') + '</tr>'
-            ).join('');
+            tableBody.innerHTML = data.rows.map((row, rowIndex) => {
+                const cells = row.map((cell, colIndex) => {
+                    const fieldName = columns[colIndex];
+                    return `<td contenteditable="true"
+                                data-row="${rowIndex}"
+                                data-field="${fieldName}"
+                                onblur="updateCell(this)"
+                                style="cursor: text;">${cell}</td>`;
+                }).join('');
+
+                const deleteBtn = `<td style="text-align: center;">
+                    <button class="btn-delete" onclick="deleteRow(${rowIndex})" title="삭제">
+                        🗑️
+                    </button>
+                </td>`;
+
+                return '<tr>' + cells + deleteBtn + '</tr>';
+            }).join('');
+        }
+
+        async function updateCell(cell) {
+            const rowIndex = parseInt(cell.dataset.row);
+            const fieldName = cell.dataset.field;
+            const newValue = cell.textContent.trim();
+
+            try {
+                const response = await fetch('/api/model-info/update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        row_index: rowIndex,
+                        field: fieldName,
+                        value: newValue
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('modelMessage', 'success', '수정되었습니다.');
+                } else {
+                    showMessage('modelMessage', 'error', result.message);
+                    // 원래 값으로 복원 (실패 시)
+                    loadAllModels();
+                }
+            } catch (error) {
+                showMessage('modelMessage', 'error', '수정 실패: ' + error.message);
+                loadAllModels();
+            }
+        }
+
+        async function deleteRow(rowIndex) {
+            if (!confirm('정말 삭제하시겠습니까?')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/model-info/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        row_index: rowIndex
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('modelMessage', 'success', result.message);
+                    // 테이블 새로고침
+                    loadAllModels();
+                } else {
+                    showMessage('modelMessage', 'error', result.message);
+                }
+            } catch (error) {
+                showMessage('modelMessage', 'error', '삭제 실패: ' + error.message);
+            }
         }
 
         async function addModelInfo() {
@@ -786,7 +889,7 @@
                 '개발모델명': document.getElementById('addModelName').value.trim(),
                 '검증PL': document.getElementById('addPL').value.trim(),
                 '모델담당자': document.getElementById('addManager').value.trim(),
-                'AP/CP': document.getElementById('addAPCP').value
+                'AP/CP': document.getElementById('addAPCP').value.trim()
             };
 
             // 유효성 검사

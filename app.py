@@ -44,12 +44,25 @@ def allowed_file(filename):
 def load_model_database():
     """모델담당자 데이터베이스 로드"""
     try:
+        # 올바른 컬럼 순서 정의
+        correct_columns = ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
+
         if os.path.exists(MODEL_DB_PATH):
             df = pd.read_excel(MODEL_DB_PATH, engine='openpyxl')
+
+            # 컬럼이 모두 존재하는지 확인
+            missing_cols = [col for col in correct_columns if col not in df.columns]
+            if missing_cols:
+                logger.warning(f"누락된 컬럼: {missing_cols}")
+                for col in missing_cols:
+                    df[col] = ''
+
+            # 컬럼 순서를 올바르게 재정렬
+            df = df[correct_columns]
             return df
         else:
             # 데이터베이스 파일이 없으면 빈 데이터프레임 생성
-            df = pd.DataFrame(columns=['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP'])
+            df = pd.DataFrame(columns=correct_columns)
             df.to_excel(MODEL_DB_PATH, index=False, engine='openpyxl')
             logger.info(f"새 모델담당자 데이터베이스 생성: {MODEL_DB_PATH}")
             return df
@@ -61,6 +74,13 @@ def load_model_database():
 def save_model_database(df):
     """모델담당자 데이터베이스 저장"""
     try:
+        # 올바른 컬럼 순서 정의
+        correct_columns = ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
+
+        # 컬럼 순서를 올바르게 재정렬
+        if all(col in df.columns for col in correct_columns):
+            df = df[correct_columns]
+
         df.to_excel(MODEL_DB_PATH, index=False, engine='openpyxl')
         logger.info(f"모델담당자 데이터베이스 저장 완료: {len(df)} 행")
         return True
@@ -391,6 +411,122 @@ def export_model_info():
 
     except Exception as e:
         logger.error(f"Export 중 오류: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
+@app.route('/api/model-info/update', methods=['POST'])
+def update_model_info():
+    """모델 정보 수정"""
+    try:
+        data = request.get_json()
+
+        # 필수 필드 확인
+        required_fields = ['row_index', 'field', 'value']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'{field}이(가) 없습니다.'
+                }), 400
+
+        row_index = int(data['row_index'])
+        field_name = data['field']
+        new_value = data['value'].strip()
+
+        # 데이터베이스 로드
+        df = load_model_database()
+
+        # 인덱스 범위 확인
+        if row_index < 0 or row_index >= len(df):
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 행 번호입니다.'
+            }), 400
+
+        # 필드명 확인
+        if field_name not in df.columns:
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 필드명입니다.'
+            }), 400
+
+        # 값 업데이트
+        df.at[row_index, field_name] = new_value
+
+        # 저장
+        if save_model_database(df):
+            return jsonify({
+                'success': True,
+                'message': '모델 정보가 수정되었습니다.',
+                'data': {
+                    'row_index': row_index,
+                    'field': field_name,
+                    'value': new_value
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '저장 중 오류가 발생했습니다.'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"모델 정보 수정 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
+@app.route('/api/model-info/delete', methods=['POST'])
+def delete_model_info():
+    """모델 정보 삭제"""
+    try:
+        data = request.get_json()
+
+        # 필수 필드 확인
+        if 'row_index' not in data:
+            return jsonify({
+                'success': False,
+                'message': 'row_index가 없습니다.'
+            }), 400
+
+        row_index = int(data['row_index'])
+
+        # 데이터베이스 로드
+        df = load_model_database()
+
+        # 인덱스 범위 확인
+        if row_index < 0 or row_index >= len(df):
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 행 번호입니다.'
+            }), 400
+
+        # 행 삭제
+        df = df.drop(index=row_index).reset_index(drop=True)
+
+        # 저장
+        if save_model_database(df):
+            return jsonify({
+                'success': True,
+                'message': '모델 정보가 삭제되었습니다.'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '저장 중 오류가 발생했습니다.'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"모델 정보 삭제 실패: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({
