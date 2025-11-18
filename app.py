@@ -658,16 +658,24 @@ def open_testhub():
         def automate_clicks():
             global last_testhub_result  # 함수 시작 부분에 global 선언
             try:
-                # 1. 다운로드 폴더의 기존 TGVerifyDetailList 파일 삭제
-                try:
-                    if os.path.exists(download_dir):
-                        for file in os.listdir(download_dir):
-                            if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
-                                file_path = os.path.join(download_dir, file)
-                                os.remove(file_path)
-                                logger.info(f"기존 파일 삭제: {file_path}")
-                except Exception as del_error:
-                    logger.warning(f"기존 파일 삭제 실패 (계속 진행): {del_error}")
+                # 1. 다운로드 폴더와 프로젝트 폴더의 기존 TGVerifyDetailList 파일 삭제
+                folders_to_clean = [download_dir, project_dir]
+                for folder in folders_to_clean:
+                    try:
+                        if os.path.exists(folder):
+                            deleted_count = 0
+                            for file in os.listdir(folder):
+                                if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
+                                    file_path = os.path.join(folder, file)
+                                    os.remove(file_path)
+                                    logger.info(f"기존 파일 삭제: {file_path}")
+                                    deleted_count += 1
+                            if deleted_count > 0:
+                                logger.info(f"{folder}: {deleted_count}개 파일 삭제 완료")
+                            else:
+                                logger.info(f"{folder}: 삭제할 파일 없음")
+                    except Exception as del_error:
+                        logger.warning(f"{folder} 파일 삭제 실패 (계속 진행): {del_error}")
 
                 # CDP 명령으로 다운로드 동작 설정 (자동 다운로드, 팝업 없음)
                 try:
