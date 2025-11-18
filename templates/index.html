@@ -484,6 +484,56 @@
             font-size: 14px;
             margin-top: 10px;
         }
+
+        /* Schedule 탭 2열 레이아웃 */
+        .schedule-top-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .testhub-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .testhub-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .btn-testhub {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-testhub:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -500,22 +550,35 @@
 
         <!-- Schedule 탭 -->
         <div id="scheduleTab" class="tab-content active">
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="section-title">📊 일정 파일 업로드</div>
-
-                <div class="form-group">
-                    <label class="form-label">Schedule_File</label>
-                    <div class="file-input-wrapper">
-                        <label for="schedule_file" class="file-input-button">파일 선택</label>
-                        <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
-                        <span class="file-name" id="schedule_file_name">선택된 파일 없음</span>
-                    </div>
+            <div class="schedule-top-section">
+                <!-- 왼쪽: 검증허브 의뢰조회 -->
+                <div class="testhub-section">
+                    <h3>🔍 검증허브 의뢰조회</h3>
+                    <button class="btn-testhub" onclick="openTestHub()">
+                        검증허브 열기
+                    </button>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
-                    📥 일정 처리 시작
-                </button>
-            </form>
+                <!-- 오른쪽: 일정 파일 업로드 -->
+                <div class="upload-section">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="section-title">📊 일정 파일 업로드</div>
+
+                        <div class="form-group">
+                            <label class="form-label">Download File</label>
+                            <div class="file-input-wrapper">
+                                <label for="schedule_file" class="file-input-button">파일 선택</label>
+                                <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
+                                <span class="file-name" id="schedule_file_name">선택된 파일 없음</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
+                            📥 일정 처리 시작
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -525,7 +588,12 @@
             <div class="message" id="scheduleMessage"></div>
 
             <div class="result-section" id="scheduleResult" style="display: none; margin-top: 30px;">
-                <div class="section-title">📋 처리 결과</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="section-title" style="margin-bottom: 0;">📋 처리 결과</div>
+                    <button class="btn btn-info" onclick="openOutputFolder()" style="font-size: 14px; padding: 8px 16px;">
+                        📁 결과 파일
+                    </button>
+                </div>
                 <div class="result-info" id="scheduleResultInfo"></div>
                 <div class="table-container" id="scheduleTableContainer">
                     <table>
@@ -618,6 +686,66 @@
         let currentScheduleDownloadUrl = '';
         let currentSchedulePreviewUrl = '';
         let schedulePreviewData = null;
+
+        // 검증허브 열기
+        async function openTestHub() {
+            console.log('검증허브 열기 버튼 클릭됨');
+            try {
+                console.log('API 요청 시작: /api/open-testhub');
+                const response = await fetch('/api/open-testhub', {
+                    method: 'POST'
+                });
+
+                console.log('API 응답 상태:', response.status);
+                const result = await response.json();
+                console.log('API 응답 결과:', result);
+
+                if (result.success) {
+                    showMessage('scheduleMessage', 'success', result.message + '\n\n파일 다운로드 및 처리 중입니다...');
+
+                    // 결과 polling 시작 (3초 후부터 2초 간격으로 최대 20회)
+                    let pollCount = 0;
+                    const maxPolls = 20;
+
+                    const pollInterval = setInterval(async () => {
+                        pollCount++;
+                        console.log(`결과 조회 시도 ${pollCount}/${maxPolls}`);
+
+                        try {
+                            const resultResponse = await fetch('/api/testhub-result');
+                            const resultData = await resultResponse.json();
+
+                            if (resultData.ready && resultData.success) {
+                                clearInterval(pollInterval);
+                                console.log('처리 결과 수신:', resultData);
+
+                                // 결과 표시
+                                displaySchedulePreview(resultData.data);
+                                currentScheduleDownloadUrl = resultData.download_url;
+                                showMessage('scheduleMessage', 'success',
+                                    '검증허브 파일 처리 완료!\n결과 파일: ' + resultData.filename);
+                            } else if (resultData.ready && !resultData.success) {
+                                clearInterval(pollInterval);
+                                showMessage('scheduleMessage', 'error',
+                                    '파일 처리 실패: ' + (resultData.message || '알 수 없는 오류'));
+                            } else if (pollCount >= maxPolls) {
+                                clearInterval(pollInterval);
+                                showMessage('scheduleMessage', 'warning',
+                                    '처리 시간이 초과되었습니다. 수동으로 확인해주세요.');
+                            }
+                        } catch (pollError) {
+                            console.error('결과 조회 실패:', pollError);
+                        }
+                    }, 2000);  // 2초마다 조회
+
+                } else {
+                    showMessage('scheduleMessage', 'error', result.message);
+                }
+            } catch (error) {
+                console.error('검증허브 열기 에러:', error);
+                showMessage('scheduleMessage', 'error', '검증허브 열기 실패: ' + error.message);
+            }
+        }
 
         // 탭 전환
         function switchTab(tabName) {
@@ -743,9 +871,41 @@
             container.style.display = 'block';
         }
 
+        function displaySchedulePreview(data) {
+            // 검증허브 결과 데이터를 표시하는 함수
+            schedulePreviewData = data;
+            const resultSection = document.getElementById('scheduleResult');
+            const resultInfo = document.getElementById('scheduleResultInfo');
+
+            resultInfo.textContent = `총 ${data.total_rows}개 행`;
+            resultSection.style.display = 'block';
+            showSchedulePreview();
+        }
+
         function downloadScheduleFile() {
             if (currentScheduleDownloadUrl) {
                 window.open(currentScheduleDownloadUrl, '_blank');
+            }
+        }
+
+        async function openOutputFolder() {
+            try {
+                const response = await fetch('/api/open-output-folder', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    // 다운로드 URL로 새 창 열기 (파일 다운로드)
+                    window.open(result.download_url, '_blank');
+                    showMessage('scheduleMessage', 'success', result.message);
+                    console.log('결과 파일 다운로드:', result.filename);
+                } else {
+                    showMessage('scheduleMessage', 'error', result.message);
+                }
+            } catch (error) {
+                console.error('결과 파일 다운로드 에러:', error);
+                showMessage('scheduleMessage', 'error', '결과 파일 다운로드 실패: ' + error.message);
             }
         }
 
