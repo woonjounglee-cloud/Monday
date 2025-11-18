@@ -687,17 +687,17 @@ def open_testhub():
                 wait = WebDriverWait(driver, 20)
 
                 # XPath 목록 (순서대로 클릭)
-                xpaths = [
+                # 처음 5개는 순차적으로 클릭, 마지막은 별도 처리
+                initial_xpaths = [
                     '//*[@id="openSpan"]/img',
                     '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[5]/a/input',
                     '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
                     '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
-                    '//*[@id="searchBtn"]',
-                    '//*[@id="excelBtn"]/span'  # 엑셀 다운로드 버튼
+                    '//*[@id="searchBtn"]'  # 검색 버튼
                 ]
 
-                # 각 요소를 순서대로 클릭
-                for i, xpath in enumerate(xpaths, 1):
+                # 처음 5개 요소를 순서대로 클릭
+                for i, xpath in enumerate(initial_xpaths, 1):
                     try:
                         # 요소가 클릭 가능할 때까지 대기
                         element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
@@ -710,6 +710,22 @@ def open_testhub():
                     except Exception as e:
                         logger.error(f"요소 클릭 실패 ({i}/6): {xpath} - {e}")
                         # 클릭 실패해도 계속 진행
+
+                # searchBtn 클릭 후 화면이 바뀔 때까지 대기
+                # excelBtn이 클릭 가능해질 때까지 최대 20초 대기
+                logger.info("검색 버튼 클릭 완료. 검색 결과 로딩 대기 중...")
+                try:
+                    excel_btn_xpath = '//*[@id="excelBtn"]/span'
+                    excel_btn = wait.until(EC.element_to_be_clickable((By.XPATH, excel_btn_xpath)))
+                    logger.info("검색 결과 로드 완료. 엑셀 버튼 클릭 가능")
+
+                    # 엑셀 다운로드 버튼 클릭
+                    excel_btn.click()
+                    logger.info(f"클릭 완료 (6/6): {excel_btn_xpath}")
+                    time.sleep(1)
+
+                except Exception as e:
+                    logger.error(f"엑셀 버튼 클릭 실패: {e}")
 
                 logger.info("자동 클릭 완료 (엑셀 다운로드 버튼 포함)")
 
