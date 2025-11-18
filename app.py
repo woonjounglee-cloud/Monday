@@ -730,64 +730,56 @@ def open_testhub():
                     # 엑셀 다운로드 버튼 클릭
                     excel_btn.click()
                     logger.info(f"클릭 완료 (6/6): {excel_btn_xpath}")
-                    time.sleep(1)
+                    logger.info("엑셀 다운로드 시작됨")
 
                 except Exception as e:
                     logger.error(f"엑셀 버튼 클릭 실패: {e}")
 
                 logger.info("자동 클릭 완료 (엑셀 다운로드 버튼 포함)")
 
-                # 다운로드 URL로 직접 이동하여 파일 다운로드
-                download_url = 'http://mdvh.sec.samsung.net/swvh/swvh/home/getViewTGVerifyDetailListExcel.do'
-                logger.info(f"다운로드 URL로 이동: {download_url}")
-                driver.get(download_url)
-
                 # 다운로드 완료 대기 함수
                 def wait_for_download_complete(download_dir, timeout=60):
                     """다운로드가 완료될 때까지 대기"""
                     logger.info("다운로드 완료 대기 중...")
 
-                    # 다운로드 시작 전 파일 목록 저장
-                    initial_files = set()
-                    if os.path.exists(download_dir):
-                        initial_files = set(os.listdir(download_dir))
+                    # 다운로드 시작 대기
+                    time.sleep(3)
 
                     start_time = time.time()
-                    end_time = start_time + timeout
-                    download_started = False
+                    last_file_size = -1
+                    stable_count = 0
 
-                    while time.time() < end_time:
+                    while time.time() - start_time < timeout:
                         if not os.path.exists(download_dir):
                             time.sleep(0.5)
                             continue
 
-                        current_files = set(os.listdir(download_dir))
+                        # TGVerifyDetailList로 시작하는 파일 찾기
+                        target_files = []
+                        for file in os.listdir(download_dir):
+                            if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
+                                if not file.endswith('.crdownload') and not file.endswith('.tmp'):
+                                    file_path = os.path.join(download_dir, file)
+                                    target_files.append(file_path)
 
-                        # 임시 파일 확인
-                        temp_files = [f for f in current_files
-                                     if f.endswith('.crdownload') or f.endswith('.tmp')]
+                        if target_files:
+                            # 파일이 발견되면 크기가 안정화될 때까지 대기
+                            file_path = target_files[0]
+                            try:
+                                current_size = os.path.getsize(file_path)
+                                if current_size == last_file_size:
+                                    stable_count += 1
+                                    if stable_count >= 3:  # 3번 연속 크기가 같으면 완료
+                                        logger.info(f"다운로드 완료: {file_path} ({current_size} bytes)")
+                                        return True
+                                else:
+                                    stable_count = 0
+                                    logger.info(f"다운로드 진행 중... ({current_size} bytes)")
+                                last_file_size = current_size
+                            except Exception as e:
+                                logger.warning(f"파일 크기 확인 실패: {e}")
 
-                        # 새 파일 확인
-                        new_files = current_files - initial_files
-                        new_excel_files = [f for f in new_files
-                                          if f.endswith(('.xlsx', '.xls')) and not f.startswith('~$')]
-
-                        if temp_files:
-                            download_started = True
-                            logger.info(f"다운로드 진행 중... (임시 파일: {len(temp_files)})")
-                            time.sleep(1)
-                        elif download_started and not temp_files:
-                            # 임시 파일이 있다가 사라졌으면 다운로드 완료
-                            logger.info("다운로드 완료 (임시 파일 사라짐)")
-                            time.sleep(1)  # 안정화 대기
-                            return True
-                        elif new_excel_files and (time.time() - start_time) > 3:
-                            # 새 엑셀 파일이 생성되고 3초가 지났으면 완료로 간주
-                            logger.info(f"다운로드 완료 (새 파일: {new_excel_files})")
-                            time.sleep(1)
-                            return True
-                        else:
-                            time.sleep(0.5)
+                        time.sleep(1)
 
                     logger.warning("다운로드 타임아웃")
                     return False
