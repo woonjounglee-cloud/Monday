@@ -560,16 +560,25 @@ def open_testhub():
         # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
         # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
 
-        # WebDriver 초기화
+        # WebDriver 초기화 (로컬 Edge 사용)
+        driver = None
         try:
-            service = EdgeService(EdgeChromiumDriverManager().install())
-            driver = webdriver.Edge(service=service, options=edge_options)
-            logger.info("Edge WebDriver 초기화 성공")
+            # 먼저 시스템의 msedgedriver를 찾아서 사용 시도
+            try:
+                driver = webdriver.Edge(options=edge_options)
+                logger.info("로컬 Edge WebDriver 사용")
+            except Exception as local_error:
+                logger.warning(f"로컬 WebDriver 실패, webdriver-manager 시도: {local_error}")
+                # 로컬에서 실패하면 webdriver-manager 사용
+                service = EdgeService(EdgeChromiumDriverManager().install())
+                driver = webdriver.Edge(service=service, options=edge_options)
+                logger.info("webdriver-manager로 Edge WebDriver 초기화 성공")
+
         except Exception as e:
             logger.error(f"WebDriver 초기화 실패: {e}")
             return jsonify({
                 'success': False,
-                'message': f'WebDriver 초기화 실패: {str(e)}'
+                'message': f'Edge WebDriver를 초기화할 수 없습니다. Edge 브라우저가 설치되어 있는지 확인해주세요. 오류: {str(e)}'
             }), 500
 
         # 백그라운드에서 실행 (비동기)
