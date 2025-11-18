@@ -597,14 +597,24 @@ def open_testhub():
         # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
         # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
 
-        # 다운로드 폴더 설정
+        # 팝업 및 알림 비활성화
+        edge_options.add_argument('--disable-popup-blocking')
+        edge_options.add_argument('--disable-notifications')
+        edge_options.add_argument('--disable-blink-features=AutomationControlled')
+
+        # 다운로드 폴더 설정 (자동 다운로드, 팝업 없음)
         prefs = {
             'download.default_directory': download_dir,
             'download.prompt_for_download': False,
             'download.directory_upgrade': True,
-            'safebrowsing.enabled': True
+            'safebrowsing.enabled': False,  # 안전 확인 비활성화
+            'profile.default_content_settings.popups': 0,
+            'profile.default_content_setting_values.automatic_downloads': 1,
+            'profile.content_settings.exceptions.automatic_downloads.*.setting': 1
         }
         edge_options.add_experimental_option('prefs', prefs)
+        edge_options.add_experimental_option('excludeSwitches', ['enable-automation'])
+        edge_options.add_experimental_option('useAutomationExtension', False)
 
         # WebDriver 초기화
         driver = None
@@ -636,6 +646,16 @@ def open_testhub():
 
         def automate_clicks():
             try:
+                # CDP 명령으로 다운로드 동작 설정 (자동 다운로드, 팝업 없음)
+                try:
+                    driver.execute_cdp_cmd('Page.setDownloadBehavior', {
+                        'behavior': 'allow',
+                        'downloadPath': download_dir
+                    })
+                    logger.info(f"다운로드 동작 설정 완료: {download_dir}")
+                except Exception as cdp_error:
+                    logger.warning(f"CDP 명령 실패 (계속 진행): {cdp_error}")
+
                 # URL 열기
                 driver.get(url)
                 logger.info(f"TestHub URL 열기: {url}")
