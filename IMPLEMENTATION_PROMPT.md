@@ -46,28 +46,50 @@ webdriver-manager>=4.0.0
 
 `ExcelProcessor` 클래스를 생성하고 다음 속성과 메서드를 구현:
 
-#### 클래스 속성
-- `REQUIRED_COLUMNS`: 추출할 컬럼 목록
-  ```python
-  ['검증항목', '과제명', '개발모델명', '검증단계', 'PRA', '의뢰일', '완료요청일', '검증 PL']
-  ```
+```python
+#!/usr/bin/env python3
+"""
+Excel Processor for FA Task Schedule
+Schedule 파일과 모델담당자 데이터베이스를 병합하여 결과 파일 생성
+"""
 
-- `COLUMN_ALIASES`: 컬럼 별칭 딕셔너리
-  ```python
-  {
-      '의뢰일': ['의뢰일', '외뢰일', '의뢰', '외뢰'],
-      '검증 PL': ['검증 PL', '검증PL', 'PL']
-  }
-  ```
+import pandas as pd
+from datetime import datetime
+from typing import Dict, Optional
+import logging
+import os
 
-- `VERIFICATION_ITEM_PRIORITY`: 검증항목 우선순위
-  ```python
-  {
-      '주행': 1,      # 필드 프로토콜_주행 시험
-      '고정점': 2,    # 필드 프로토콜_고정점 송수신 시험
-      '송수화': 3     # 필드 프로토콜_송수화 시험
-  }
-  ```
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class ExcelProcessor:
+    """엑셀 파일 처리 및 병합 클래스"""
+
+    # 추출할 컬럼 목록
+    REQUIRED_COLUMNS = [
+        '검증항목', '과제명', '개발모델명', '검증단계',
+        'PRA', '의뢰일', '완료요청일', '검증 PL'
+    ]
+
+    # 컬럼 별칭 (여러 이름으로 불릴 수 있는 컬럼)
+    COLUMN_ALIASES = {
+        '의뢰일': ['의뢰일', '외뢰일', '의뢰', '외뢰'],
+        '검증 PL': ['검증 PL', '검증PL', 'PL'],
+    }
+
+    # 검증항목 우선순위 (낮은 숫자가 우선)
+    VERIFICATION_ITEM_PRIORITY = {
+        '주행': 1,      # 필드 프로토콜_주행 시험 / 필드 프로토콜_주행시험
+        '고정점': 2,    # 필드 프로토콜_고정점 송수신 시험
+        '송수화': 3     # 필드 프로토콜_송수화 시험
+    }
+
+    def __init__(self):
+        """초기화"""
+        self.schedule_df = None
+        self.model_manager_df = None
+```
 
 #### 인스턴스 속성
 - `self.schedule_df`: Schedule 데이터프레임
@@ -76,22 +98,114 @@ webdriver-manager>=4.0.0
 ### 3.2 핵심 메서드 구현
 
 #### `get_week_number() -> str`
-- 현재 날짜의 주차를 계산
-- ISO 8601 주차 기준 사용
-- 반환 형식: "W47" (예시)
+현재 날짜의 주차를 계산하여 W{주차} 형식으로 반환
+
+```python
+def get_week_number(self) -> str:
+    """
+    현재 날짜의 주차를 계산하여 W{주차} 형식으로 반환
+
+    Returns:
+        str: W{주차} 형식 (예: W47)
+    """
+    now = datetime.now()
+    week_number = now.isocalendar()[1]
+    return f"W{week_number:02d}"
+```
 
 #### `get_engine_for_file(filepath: str) -> str`
-- 파일 확장자에 따라 적절한 pandas 엔진 선택
-- .xls → 'xlrd'
-- .xlsx → 'openpyxl'
+파일 확장자에 따라 적절한 pandas 엔진 선택
+
+```python
+def get_engine_for_file(self, filepath: str) -> str:
+    """
+    파일 확장자에 따라 적절한 pandas 엔진 선택
+
+    Args:
+        filepath: 파일 경로
+
+    Returns:
+        str: 엔진 이름
+    """
+    ext = os.path.splitext(filepath)[1].lower()
+    if ext == '.xls':
+        return 'xlrd'
+    elif ext == '.xlsx':
+        return 'openpyxl'
+    else:
+        return 'openpyxl'  # 기본값
+```
 
 #### `read_excel_with_fallback(filepath: str, **kwargs) -> pd.DataFrame`
-- 여러 엔진을 시도하여 엑셀 파일 읽기
-- primary 엔진 실패 시 fallback 엔진 시도
+여러 엔진을 시도하여 엑셀 파일 읽기
+
+```python
+def read_excel_with_fallback(self, filepath: str, **kwargs) -> pd.DataFrame:
+    """
+    여러 엔진을 시도하여 엑셀 파일 읽기
+
+    Args:
+        filepath: 파일 경로
+        **kwargs: pandas read_excel 추가 인자
+
+    Returns:
+        pd.DataFrame: 읽은 데이터프레임
+    """
+    # 파일 확장자에 맞는 엔진 선택
+    primary_engine = self.get_engine_for_file(filepath)
+    engines = [primary_engine]
+
+    # fallback 엔진 추가
+    if primary_engine == 'openpyxl':
+        engines.append('xlrd')
+    else:
+        engines.append('openpyxl')
+
+    last_error = None
+
+    for engine in engines:
+        try:
+            logger.info(f"엔진 '{engine}'으로 파일 읽기 시도: {filepath}")
+            df = pd.read_excel(filepath, engine=engine, **kwargs)
+            logger.info(f"성공: 엔진 '{engine}'으로 파일 읽기 완료")
+            return df
+        except Exception as e:
+            logger.warning(f"엔진 '{engine}' 실패: {e}")
+            last_error = e
+            continue
+
+    # 모든 엔진 실패 시
+    raise Exception(f"모든 엔진으로 파일 읽기 실패. 마지막 에러: {last_error}")
+```
 
 #### `find_header_row(df: pd.DataFrame, required_columns: list) -> int`
-- 첫 10개 행에서 헤더 위치 찾기
-- 필요한 컬럼 중 50% 이상이 있으면 헤더로 판단
+첫 10개 행에서 헤더 위치 찾기
+
+```python
+def find_header_row(self, df: pd.DataFrame, required_columns: list) -> int:
+    """
+    헤더 행의 위치를 찾음
+
+    Args:
+        df: 데이터프레임
+        required_columns: 찾을 컬럼 목록
+
+    Returns:
+        int: 헤더 행 번호 (0-based), 찾지 못하면 0
+    """
+    # 첫 10개 행에서 헤더 찾기
+    for row_idx in range(min(10, len(df))):
+        row_values = df.iloc[row_idx].astype(str).tolist()
+
+        # 필요한 컬럼 중 50% 이상이 있으면 헤더로 판단
+        matches = sum(1 for col in required_columns if any(col in str(val) for val in row_values))
+        if matches >= len(required_columns) * 0.5:
+            logger.info(f"헤더 행 발견: {row_idx}번째 행")
+            return row_idx
+
+    logger.warning("헤더 행을 찾지 못함. 첫 번째 행을 헤더로 사용")
+    return 0
+```
 
 #### `read_schedule_file(filepath: str) -> pd.DataFrame`
 1. 헤더 위치 자동 감지
@@ -234,44 +348,197 @@ Selenium WebDriver를 사용하여 검증허브 자동화:
 
 **주요 기능**:
 1. Chrome WebDriver 경로 찾기
-   - 프로젝트 drivers 폴더 확인
-   - Chrome 설치 경로 확인
-   - webdriver-manager로 자동 다운로드
+   ```python
+   def find_chrome_driver():
+       # 1. 프로젝트 폴더의 drivers 디렉토리 확인
+       project_driver = os.path.join(os.path.dirname(__file__), 'drivers', 'chromedriver.exe')
+       if os.path.exists(project_driver):
+           return project_driver
 
-2. Chrome 옵션 설정
-   - 다운로드 폴더 설정
-   - 팝업 비활성화
-   - 자동 다운로드 활성화
+       # 2. Chrome 설치 경로에서 chromedriver.exe 찾기
+       chrome_base_paths = [
+           'C:\\Program Files\\Google\\Chrome\\Application',
+           'C:\\Program Files (x86)\\Google\\Chrome\\Application',
+       ]
 
-3. 백그라운드 스레드에서 자동화 실행:
-   - 다운로드 폴더의 기존 TGVerifyDetailList 파일 삭제
-   - 검증허브 URL 열기
-   - XPath로 요소 순차 클릭:
-     ```python
-     initial_xpaths = [
-         '//*[@id="openSpan"]/img',
-         '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[5]/a/input',
-         '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
-         '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
-         '//*[@id="searchBtn"]'
-     ]
-     excel_btn_xpath = '//*[@id="excelBtn"]/span'
-     ```
-   - 각 클릭 후 1초 대기
-   - 검색 버튼 클릭 후 엑셀 버튼이 나타날 때까지 대기 (최대 20초)
-   - 엑셀 버튼 클릭 전 5초 추가 대기
-   - 엑셀 다운로드 버튼 클릭
+       for base_path in chrome_base_paths:
+           if os.path.exists(base_path):
+               pattern = os.path.join(base_path, '*', 'chromedriver.exe')
+               drivers = glob.glob(pattern)
+               if drivers:
+                   return drivers[0]
 
-4. 다운로드 완료 대기 (최대 60초)
-   - TGVerifyDetailList로 시작하는 파일 찾기
-   - 파일 크기가 안정화될 때까지 대기 (3번 연속 크기 동일)
+       return None
+   ```
 
-5. 다운로드된 파일 처리
-   - 프로젝트 폴더로 파일 복사
-   - ExcelProcessor로 처리
-   - 결과를 last_testhub_result 전역 변수에 저장
+2. 다운로드 경로 설정 (실제 환경에 맞게 수정 필요)
+   ```python
+   # Windows 기본 다운로드 폴더
+   download_dir = r'C:\Users\woonjoung.lee\Downloads'
+   # 프로젝트 폴더 경로
+   project_dir = r'C:\Users\woonjoung.lee\PycharmProjects\FP_Manager'
+   ```
 
-6. 브라우저는 닫지 않고 계속 열어둠
+3. Chrome 옵션 설정
+   ```python
+   chrome_options = ChromeOptions()
+   # 팝업 및 알림 비활성화
+   chrome_options.add_argument('--disable-popup-blocking')
+   chrome_options.add_argument('--disable-notifications')
+   chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+   chrome_options.add_argument('--disable-dev-shm-usage')
+   chrome_options.add_argument('--no-sandbox')
+
+   # 다운로드 폴더 설정 (자동 다운로드, 팝업 없음)
+   prefs = {
+       'download.default_directory': download_dir,
+       'download.prompt_for_download': False,
+       'download.directory_upgrade': True,
+       'safebrowsing.enabled': False,
+       'profile.default_content_settings.popups': 0,
+       'profile.default_content_setting_values.automatic_downloads': 1,
+       'profile.content_settings.exceptions.automatic_downloads.*.setting': 1
+   }
+   chrome_options.add_experimental_option('prefs', prefs)
+   chrome_options.add_experimental_option('excludeSwitches', ['enable-automation', 'enable-logging'])
+   chrome_options.add_experimental_option('useAutomationExtension', False)
+   ```
+
+4. 백그라운드 스레드에서 자동화 실행:
+   ```python
+   def automate_clicks():
+       global last_testhub_result
+
+       try:
+           # 1. 다운로드 폴더와 프로젝트 폴더의 기존 TGVerifyDetailList 파일 삭제
+           folders_to_clean = [download_dir, project_dir]
+           for folder in folders_to_clean:
+               if os.path.exists(folder):
+                   for file in os.listdir(folder):
+                       if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
+                           file_path = os.path.join(folder, file)
+                           os.remove(file_path)
+
+           # 2. CDP 명령으로 다운로드 동작 설정
+           driver.execute_cdp_cmd('Page.setDownloadBehavior', {
+               'behavior': 'allow',
+               'downloadPath': download_dir
+           })
+
+           # 3. URL 열기
+           driver.get(url)
+           time.sleep(3)  # Chrome 로딩 대기
+
+           # 4. XPath로 요소 순차 클릭
+           wait = WebDriverWait(driver, 20)
+
+           initial_xpaths = [
+               '//*[@id="openSpan"]/img',
+               '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[5]/a/input',
+               '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
+               '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
+               '//*[@id="searchBtn"]'  # 검색 버튼
+           ]
+
+           for xpath in initial_xpaths:
+               element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+               element.click()
+               time.sleep(1)  # 각 클릭 후 대기
+
+           # 5. 검색 결과 로딩 대기 및 엑셀 버튼 클릭
+           excel_btn_xpath = '//*[@id="excelBtn"]/span'
+           excel_btn = wait.until(EC.element_to_be_clickable((By.XPATH, excel_btn_xpath)))
+           time.sleep(5)  # 엑셀 버튼 클릭 전 5초 대기
+           excel_btn.click()
+   ```
+
+5. 다운로드 완료 대기 (최대 60초)
+   ```python
+   def wait_for_download_complete(download_dir, timeout=60):
+       time.sleep(3)  # 다운로드 시작 대기
+
+       start_time = time.time()
+       last_file_size = -1
+       stable_count = 0
+
+       while time.time() - start_time < timeout:
+           target_files = []
+           for file in os.listdir(download_dir):
+               if file.startswith('TGVerifyDetailList') and file.endswith(('.xlsx', '.xls')):
+                   if not file.endswith('.crdownload') and not file.endswith('.tmp'):
+                       file_path = os.path.join(download_dir, file)
+                       target_files.append(file_path)
+
+           if target_files:
+               file_path = target_files[0]
+               current_size = os.path.getsize(file_path)
+               if current_size == last_file_size:
+                   stable_count += 1
+                   if stable_count >= 3:  # 3번 연속 크기가 같으면 완료
+                       return True
+               else:
+                   stable_count = 0
+               last_file_size = current_size
+
+           time.sleep(1)
+
+       return False
+   ```
+
+6. 다운로드된 파일 처리
+   ```python
+   # 파일 찾기
+   excel_files = []
+   for file in os.listdir(download_dir):
+       if (file.startswith('TGVerifyDetailList') and
+           file.endswith(('.xlsx', '.xls')) and
+           not file.startswith('~$')):
+           file_path = os.path.join(download_dir, file)
+           excel_files.append((file_path, os.path.getmtime(file_path)))
+
+   # 가장 최근 파일 선택
+   downloaded_file = max(excel_files, key=lambda x: x[1])[0]
+
+   # 프로젝트 폴더로 파일 복사
+   os.makedirs(project_dir, exist_ok=True)
+   filename = os.path.basename(downloaded_file)
+   project_file = os.path.join(project_dir, filename)
+   shutil.copy2(downloaded_file, project_file)
+
+   # ExcelProcessor로 처리
+   processor = ExcelProcessor()
+   week_number = processor.get_week_number()
+   output_filename = f"{week_number}_FA_과제일정.xlsx"
+   output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+
+   success = processor.process(project_file, MODEL_DB_PATH, output_path)
+
+   if success and processor.schedule_df is not None:
+       # 결과를 전역 변수에 저장
+       last_testhub_result = {
+           'success': True,
+           'data': {
+               'columns': processor.schedule_df.columns.tolist(),
+               'rows': processor.schedule_df.fillna('').astype(str).values.tolist(),
+               'total_rows': len(processor.schedule_df)
+           },
+           'filename': output_filename,
+           'download_url': f'/download/{output_filename}',
+           'timestamp': time.time()
+       }
+   ```
+
+7. 브라우저는 닫지 않고 계속 열어둠 (사용자가 계속 사용할 수 있도록)
+   ```python
+   # driver.quit()  # 주석 처리하여 브라우저를 닫지 않음
+   ```
+
+8. 별도 스레드에서 실행
+   ```python
+   thread = threading.Thread(target=automate_clicks)
+   thread.daemon = True
+   thread.start()
+   ```
 
 #### `GET /api/testhub-result`
 - 검증허브 처리 결과 조회
@@ -774,6 +1041,311 @@ abs_filepath = os.path.abspath(filepath)
 if not abs_filepath.startswith(abs_output_folder):
     return error
 ```
+
+---
+
+## 18. 환경 설정 및 주의사항
+
+### 18.1 Windows 환경 특화 사항
+
+**다운로드 경로 설정** (app.py 내 `open_testhub` 함수):
+```python
+# 실제 사용자 환경에 맞게 수정 필요
+download_dir = r'C:\Users\{YOUR_USERNAME}\Downloads'
+project_dir = r'C:\Users\{YOUR_USERNAME}\PycharmProjects\{PROJECT_NAME}'
+```
+
+**Chrome WebDriver 경로**:
+- 자동 감지: `drivers/chromedriver.exe` 또는 Chrome 설치 경로
+- 수동 설치: https://chromedriver.chromium.org/downloads 에서 Chrome 버전에 맞는 드라이버 다운로드
+- 설치 위치: 프로젝트의 `drivers` 폴더
+
+### 18.2 검증허브 URL 설정
+
+**환경 변수 또는 코드에서 설정**:
+```python
+# app.py
+TESTHUB_URL = os.getenv('TESTHUB_URL', 'https://your-actual-testhub-url.com')
+```
+
+실제 사용 시 검증허브의 정확한 URL로 변경 필요
+
+### 18.3 필수 import 문
+
+**app.py 상단**:
+```python
+#!/usr/bin/env python3
+"""
+Flask 웹 서버 - Monday
+Schedule 관리 및 Model Info 데이터베이스 관리
+"""
+
+import os
+import pandas as pd
+from flask import Flask, render_template, request, send_file, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
+from excel_processor import ExcelProcessor
+import logging
+from datetime import datetime
+import subprocess
+import platform
+import webbrowser
+import time
+import shutil
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.chrome import ChromeDriverManager
+```
+
+### 18.4 실행 시 출력 메시지
+
+**app.py 마지막 부분**:
+```python
+if __name__ == '__main__':
+    print("=" * 60)
+    print("Monday 시작")
+    print("접속 주소: http://localhost:5000")
+    print("=" * 60)
+    app.run(host='0.0.0.0', port=5000, debug=True)
+```
+
+### 18.5 데이터베이스 초기 상태
+
+**db/model_manager.xlsx**:
+- 파일이 없으면 자동 생성됨
+- 초기 컬럼: ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
+- 빈 데이터프레임으로 시작
+
+### 18.6 포트 및 호스트 설정
+
+**기본 설정**:
+- Host: `0.0.0.0` (모든 네트워크 인터페이스에서 접속 가능)
+- Port: `5000`
+- 접속 URL: `http://localhost:5000` 또는 `http://127.0.0.1:5000`
+
+**방화벽 설정**:
+- Windows 방화벽에서 포트 5000 허용 필요 (외부 접속 시)
+
+### 18.7 파일 인코딩
+
+**Excel 파일**:
+- 한글 파일명 지원
+- UTF-8 인코딩 사용
+- 셀 내용도 한글 지원
+
+**HTML 파일**:
+```html
+<meta charset="UTF-8">
+```
+
+### 18.8 로깅 설정
+
+**기본 로깅**:
+```python
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+```
+
+**로그 출력 위치**:
+- 콘솔 (표준 출력)
+- 필요 시 파일 로깅 추가 가능
+
+### 18.9 에러 메시지 처리
+
+**사용자 친화적 에러 메시지**:
+- 한글 메시지 사용
+- 구체적인 문제 상황 설명
+- 해결 방법 제시
+
+예시:
+```python
+return jsonify({
+    'success': False,
+    'message': 'Chrome WebDriver를 찾을 수 없습니다.\n\n다음 중 하나를 수행해주세요:\n1. https://chromedriver.chromium.org/downloads 에서 Chrome 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 chromedriver.exe로 저장\n2. 인터넷에 연결하여 자동 다운로드 허용'
+}), 500
+```
+
+### 18.10 시작 전 체크리스트
+
+구현 시작 전 확인사항:
+- [ ] Python 3.8 이상 설치 확인
+- [ ] pip 최신 버전 업데이트
+- [ ] Chrome 브라우저 설치 (Selenium 자동화용)
+- [ ] 프로젝트 폴더 생성
+- [ ] 가상환경 설정 (선택사항)
+  ```bash
+  python -m venv venv
+  venv\Scripts\activate  # Windows
+  source venv/bin/activate  # Linux/Mac
+  ```
+- [ ] requirements.txt 의존성 설치
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+### 18.11 개발 vs 프로덕션 설정
+
+**개발 환경**:
+```python
+app.run(host='127.0.0.1', port=5000, debug=True)
+```
+
+**프로덕션 환경**:
+```python
+app.run(host='0.0.0.0', port=5000, debug=False)
+```
+
+또는 gunicorn 사용:
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 --timeout 120 app:app
+```
+
+### 18.12 타임아웃 설정
+
+**주요 타임아웃 값**:
+- 파일 다운로드 대기: 60초
+- Selenium WebDriverWait: 20초
+- Chrome 로딩 대기: 3초
+- 엑셀 버튼 클릭 전 대기: 5초
+- 각 요소 클릭 후 대기: 1초
+- 결과 polling 간격: 2초 (최대 20회 = 40초)
+
+### 18.13 메모리 관리
+
+**대용량 파일 처리 시**:
+- 파일 크기 제한: 16MB (Flask MAX_CONTENT_LENGTH)
+- 필요 시 제한 조정 가능
+- 파일 처리 후 메모리 정리
+
+**브라우저 관리**:
+- Selenium 브라우저는 의도적으로 닫지 않음 (사용자가 계속 사용 가능)
+- 필요 시 수동으로 종료
+
+---
+
+## 19. 완전한 코드 플로우
+
+### Schedule 파일 업로드 전체 흐름
+
+1. **사용자 액션**: 웹 UI에서 Schedule 파일 선택 및 "일정 처리 시작" 클릭
+2. **프론트엔드**: FormData 생성 후 `/upload` POST 요청
+3. **백엔드 (app.py)**:
+   - 파일 유효성 검사 (`allowed_file`)
+   - 파일 저장 (`uploads/schedule_{filename}`)
+   - ExcelProcessor 인스턴스 생성
+   - 주차 계산 (`get_week_number()`)
+   - 처리 실행 (`processor.process(schedule_file, MODEL_DB_PATH, output_path)`)
+4. **excel_processor.py**:
+   - Schedule 파일 읽기 (`read_schedule_file`)
+     - 헤더 자동 감지 (`find_header_row`)
+     - 필요한 컬럼 추출 (부분 일치 및 별칭 지원)
+   - 모델담당자 DB 읽기 (`read_model_manager_file`)
+   - 데이터 정렬 (`sort_schedule_data`)
+     - 검증항목 우선순위 적용
+     - PRA 오름차순 정렬
+   - VLOOKUP 매칭 (`vlookup_model_manager`)
+     - 개발모델명으로 매칭
+     - 송수화 시험 특별 처리 ('이운정' 설정)
+   - 결과 저장 (`save_result`)
+     - openpyxl로 저장
+     - 모든 셀 가운데 정렬 적용
+5. **백엔드 (app.py)**: 성공 응답 반환
+   ```json
+   {
+     "success": true,
+     "message": "파일 처리가 완료되었습니다.",
+     "filename": "W47_FA_과제일정.xlsx",
+     "download_url": "/download/W47_FA_과제일정.xlsx",
+     "preview_url": "/preview/W47_FA_과제일정.xlsx"
+   }
+   ```
+6. **프론트엔드**:
+   - 성공 메시지 표시
+   - 미리보기 데이터 로드 (`loadSchedulePreview()`)
+   - 결과 테이블 표시 (`showSchedulePreview()`)
+
+### 검증허브 자동화 전체 흐름
+
+1. **사용자 액션**: "검증허브 열기" 버튼 클릭
+2. **프론트엔드**: `/api/open-testhub` POST 요청
+3. **백엔드 (app.py)**:
+   - Chrome WebDriver 경로 찾기 (`find_chrome_driver()`)
+   - Chrome 옵션 설정 (다운로드 폴더, 팝업 비활성화 등)
+   - 별도 스레드에서 자동화 실행 (`automate_clicks()`)
+     - 기존 TGVerifyDetailList 파일 삭제
+     - 검증허브 URL 열기
+     - XPath로 요소 순차 클릭 (5개 요소)
+     - 엑셀 다운로드 버튼 클릭
+     - 다운로드 완료 대기 (`wait_for_download_complete()`)
+     - 파일 복사 및 처리
+     - 결과를 `last_testhub_result`에 저장
+   - 즉시 성공 응답 반환 (백그라운드 처리)
+4. **프론트엔드**:
+   - 성공 메시지 표시
+   - 2초마다 `/api/testhub-result` polling (최대 20회)
+5. **백엔드 (app.py)**: polling 요청에 대해 `last_testhub_result` 반환
+6. **프론트엔드**:
+   - 결과가 준비되면 미리보기 표시 (`displaySchedulePreview()`)
+
+---
+
+## 20. 최종 구현 순서 권장
+
+구현 시 다음 순서를 권장합니다:
+
+1. **기본 환경 설정** (1-2시간)
+   - 프로젝트 폴더 생성
+   - requirements.txt 작성 및 패키지 설치
+   - 폴더 구조 생성
+
+2. **excel_processor.py 구현** (3-4시간)
+   - 클래스 및 기본 메서드
+   - 파일 읽기 로직
+   - 정렬 및 VLOOKUP 로직
+   - 파일 저장 로직
+   - 테스트 (단독 실행)
+
+3. **app.py 기본 구현** (2-3시간)
+   - Flask 앱 설정
+   - 기본 라우트 (/, /upload, /download, /preview)
+   - 유틸리티 함수
+   - 테스트 (파일 업로드)
+
+4. **templates/index.html 기본 UI** (2-3시간)
+   - HTML 구조
+   - CSS 스타일링
+   - Schedule 탭 기본 기능
+   - 테스트 (파일 업로드 및 미리보기)
+
+5. **Model Info API 구현** (2-3시간)
+   - 데이터베이스 CRUD 함수
+   - API 라우트 구현
+   - 프론트엔드 Model Info 탭
+   - 테스트 (CRUD 작업)
+
+6. **검증허브 자동화 구현** (3-4시간)
+   - Selenium 설정
+   - Chrome WebDriver 관리
+   - 자동화 로직
+   - 다운로드 및 처리 로직
+   - 테스트 (전체 플로우)
+
+7. **통합 테스트 및 디버깅** (2-3시간)
+   - 전체 기능 테스트
+   - 에러 케이스 처리
+   - 로깅 확인
+   - 사용자 경험 개선
+
+8. **문서화 및 배포** (1-2시간)
+   - README.md 작성
+   - 주석 추가
+   - 배포 준비
+
+**총 예상 시간**: 16-24시간 (중급 개발자 기준)
 
 ---
 
