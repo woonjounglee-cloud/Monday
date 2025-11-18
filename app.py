@@ -952,6 +952,50 @@ def get_testhub_result():
     return jsonify(result)
 
 
+@app.route('/api/open-output-folder', methods=['POST'])
+def open_output_folder():
+    """결과 파일이 저장된 output 폴더를 탐색기로 열기"""
+    try:
+        # OUTPUT_FOLDER의 절대 경로 구하기
+        abs_output_folder = os.path.abspath(OUTPUT_FOLDER)
+
+        # 폴더가 존재하는지 확인
+        if not os.path.exists(abs_output_folder):
+            return jsonify({
+                'success': False,
+                'message': f'폴더를 찾을 수 없습니다: {abs_output_folder}'
+            }), 404
+
+        # 운영체제에 따라 폴더 열기
+        system = platform.system()
+
+        if system == 'Windows':
+            # Windows: explorer를 사용하여 폴더 열기
+            os.startfile(abs_output_folder)
+            logger.info(f"Windows 탐색기로 폴더 열기: {abs_output_folder}")
+        elif system == 'Darwin':  # macOS
+            subprocess.Popen(['open', abs_output_folder])
+            logger.info(f"macOS Finder로 폴더 열기: {abs_output_folder}")
+        else:  # Linux
+            subprocess.Popen(['xdg-open', abs_output_folder])
+            logger.info(f"Linux 파일 관리자로 폴더 열기: {abs_output_folder}")
+
+        return jsonify({
+            'success': True,
+            'message': f'폴더를 열었습니다: {abs_output_folder}',
+            'folder_path': abs_output_folder
+        })
+
+    except Exception as e:
+        logger.error(f"폴더 열기 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'폴더 열기 실패: {str(e)}'
+        }), 500
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("Monday 시작")

@@ -588,7 +588,12 @@
             <div class="message" id="scheduleMessage"></div>
 
             <div class="result-section" id="scheduleResult" style="display: none; margin-top: 30px;">
-                <div class="section-title">📋 처리 결과</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="section-title" style="margin-bottom: 0;">📋 처리 결과</div>
+                    <button class="btn btn-info" onclick="openOutputFolder()" style="font-size: 14px; padding: 8px 16px;">
+                        📁 결과 파일
+                    </button>
+                </div>
                 <div class="result-info" id="scheduleResultInfo"></div>
                 <div class="table-container" id="scheduleTableContainer">
                     <table>
@@ -880,6 +885,25 @@
         function downloadScheduleFile() {
             if (currentScheduleDownloadUrl) {
                 window.open(currentScheduleDownloadUrl, '_blank');
+            }
+        }
+
+        async function openOutputFolder() {
+            try {
+                const response = await fetch('/api/open-output-folder', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('scheduleMessage', 'success', result.message);
+                    console.log('폴더 열기 성공:', result.folder_path);
+                } else {
+                    showMessage('scheduleMessage', 'error', result.message);
+                }
+            } catch (error) {
+                console.error('폴더 열기 에러:', error);
+                showMessage('scheduleMessage', 'error', '폴더 열기 실패: ' + error.message);
             }
         }
 
