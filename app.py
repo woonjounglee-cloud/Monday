@@ -691,6 +691,11 @@ def open_testhub():
                 driver.get(url)
                 logger.info(f"TestHub URL 열기: {url}")
 
+                # Chrome 열린 후 3초 대기
+                logger.info("Chrome 로딩 대기 중 (3초)...")
+                time.sleep(3)
+                logger.info("대기 완료, XPath 클릭 시작")
+
                 # 페이지 로드 대기
                 wait = WebDriverWait(driver, 20)
 
