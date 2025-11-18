@@ -14,6 +14,14 @@ from datetime import datetime
 import subprocess
 import platform
 import webbrowser
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.edge.service import Service as EdgeService
+from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -543,51 +551,82 @@ def delete_model_info():
 
 @app.route('/api/open-testhub', methods=['POST'])
 def open_testhub():
-    """검증허브 URL을 Microsoft Edge로 열기"""
+    """검증허브 URL을 Microsoft Edge로 열고 자동으로 요소 클릭"""
     try:
         url = TESTHUB_URL
-        system = platform.system()
 
-        if system == 'Windows':
-            # Windows에서 Edge 실행 (한글 URL 지원)
-            # 가능한 Edge 설치 경로들
-            edge_paths = [
-                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-                'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-            ]
+        # Edge WebDriver 설정
+        edge_options = EdgeOptions()
+        # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
+        # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
 
-            edge_found = False
-            for edge_path in edge_paths:
-                if os.path.exists(edge_path):
-                    # Edge 실행 파일을 직접 실행
-                    subprocess.Popen([edge_path, url])
-                    logger.info(f"Microsoft Edge로 TestHub 열기: {url}")
-                    edge_found = True
-                    break
-
-            if not edge_found:
-                # Edge 경로를 찾을 수 없으면 webbrowser 사용
-                webbrowser.open(url)
-                logger.info(f"기본 브라우저로 TestHub 열기: {url}")
-        elif system == 'Darwin':  # macOS
-            subprocess.Popen(['open', '-a', 'Microsoft Edge', url])
-            logger.info(f"Microsoft Edge로 TestHub 열기 (macOS): {url}")
-        elif system == 'Linux':
-            # Linux에서 Edge 실행 시도
-            try:
-                subprocess.Popen(['microsoft-edge', url])
-            except FileNotFoundError:
-                webbrowser.open(url)
-            logger.info(f"브라우저로 TestHub 열기 (Linux): {url}")
-        else:
+        # WebDriver 초기화
+        try:
+            service = EdgeService(EdgeChromiumDriverManager().install())
+            driver = webdriver.Edge(service=service, options=edge_options)
+            logger.info("Edge WebDriver 초기화 성공")
+        except Exception as e:
+            logger.error(f"WebDriver 초기화 실패: {e}")
             return jsonify({
                 'success': False,
-                'message': '지원하지 않는 운영체제입니다.'
-            }), 400
+                'message': f'WebDriver 초기화 실패: {str(e)}'
+            }), 500
+
+        # 백그라운드에서 실행 (비동기)
+        import threading
+
+        def automate_clicks():
+            try:
+                # URL 열기
+                driver.get(url)
+                logger.info(f"TestHub URL 열기: {url}")
+
+                # 페이지 로드 대기
+                wait = WebDriverWait(driver, 20)
+
+                # XPath 목록 (순서대로 클릭)
+                xpaths = [
+                    '//*[@id="openSpan"]/img',
+                    '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[5]/a/input',
+                    '//*[@id="multi_select_ulBody_searchStdTestItemId"]/li[6]/a/input',
+                    '//*[@id="multi_select_btnOk_searchStdTestItemId"]',
+                    '//*[@id="searchBtn"]'
+                ]
+
+                # 각 요소를 순서대로 클릭
+                for i, xpath in enumerate(xpaths, 1):
+                    try:
+                        # 요소가 클릭 가능할 때까지 대기
+                        element = wait.until(EC.element_to_be_clickable((By.XPATH, xpath)))
+                        element.click()
+                        logger.info(f"클릭 완료 ({i}/5): {xpath}")
+
+                        # 각 클릭 후 대기 (페이지 반응 대기)
+                        time.sleep(1)
+
+                    except Exception as e:
+                        logger.error(f"요소 클릭 실패 ({i}/5): {xpath} - {e}")
+                        # 클릭 실패해도 계속 진행
+
+                logger.info("자동 클릭 완료")
+
+                # 브라우저는 열어둠 (사용자가 계속 사용할 수 있도록)
+                # driver.quit()  # 주석 처리하여 브라우저를 닫지 않음
+
+            except Exception as e:
+                logger.error(f"자동화 실행 중 오류: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                # driver.quit()
+
+        # 별도 스레드에서 자동화 실행
+        thread = threading.Thread(target=automate_clicks)
+        thread.daemon = True
+        thread.start()
 
         return jsonify({
             'success': True,
-            'message': f'검증허브를 Microsoft Edge로 열었습니다.',
+            'message': f'검증허브를 열고 자동 클릭을 시작했습니다.',
             'url': url
         })
 
