@@ -645,6 +645,7 @@ def open_testhub():
         import threading
 
         def automate_clicks():
+            global last_testhub_result  # 함수 시작 부분에 global 선언
             try:
                 # CDP 명령으로 다운로드 동작 설정 (자동 다운로드, 팝업 없음)
                 try:
@@ -791,7 +792,6 @@ def open_testhub():
                                 logger.info("검증허브 다운로드 파일 처리 완료")
 
                                 # 결과를 전역 변수에 저장 (클라이언트가 조회할 수 있도록)
-                                global last_testhub_result
                                 last_testhub_result = {
                                     'success': True,
                                     'data': processor.schedule_df.to_dict('records'),
