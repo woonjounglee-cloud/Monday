@@ -419,6 +419,122 @@ def export_model_info():
         }), 500
 
 
+@app.route('/api/model-info/update', methods=['POST'])
+def update_model_info():
+    """모델 정보 수정"""
+    try:
+        data = request.get_json()
+
+        # 필수 필드 확인
+        required_fields = ['row_index', 'field', 'value']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'{field}이(가) 없습니다.'
+                }), 400
+
+        row_index = int(data['row_index'])
+        field_name = data['field']
+        new_value = data['value'].strip()
+
+        # 데이터베이스 로드
+        df = load_model_database()
+
+        # 인덱스 범위 확인
+        if row_index < 0 or row_index >= len(df):
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 행 번호입니다.'
+            }), 400
+
+        # 필드명 확인
+        if field_name not in df.columns:
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 필드명입니다.'
+            }), 400
+
+        # 값 업데이트
+        df.at[row_index, field_name] = new_value
+
+        # 저장
+        if save_model_database(df):
+            return jsonify({
+                'success': True,
+                'message': '모델 정보가 수정되었습니다.',
+                'data': {
+                    'row_index': row_index,
+                    'field': field_name,
+                    'value': new_value
+                }
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '저장 중 오류가 발생했습니다.'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"모델 정보 수정 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
+@app.route('/api/model-info/delete', methods=['POST'])
+def delete_model_info():
+    """모델 정보 삭제"""
+    try:
+        data = request.get_json()
+
+        # 필수 필드 확인
+        if 'row_index' not in data:
+            return jsonify({
+                'success': False,
+                'message': 'row_index가 없습니다.'
+            }), 400
+
+        row_index = int(data['row_index'])
+
+        # 데이터베이스 로드
+        df = load_model_database()
+
+        # 인덱스 범위 확인
+        if row_index < 0 or row_index >= len(df):
+            return jsonify({
+                'success': False,
+                'message': '유효하지 않은 행 번호입니다.'
+            }), 400
+
+        # 행 삭제
+        df = df.drop(index=row_index).reset_index(drop=True)
+
+        # 저장
+        if save_model_database(df):
+            return jsonify({
+                'success': True,
+                'message': '모델 정보가 삭제되었습니다.'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': '저장 중 오류가 발생했습니다.'
+            }), 500
+
+    except Exception as e:
+        logger.error(f"모델 정보 삭제 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
 if __name__ == '__main__':
     print("=" * 60)
     print("Monday 시작")
