@@ -590,7 +590,7 @@ def open_testhub():
             return None
 
         # 다운로드 경로 설정
-        download_dir = r'C:\Users\user\PycharmProjects\FP_Manager'
+        download_dir = r'C:\Users\woonjoung.lee\PycharmProjects\FP_Manager'
 
         # Edge WebDriver 설정
         edge_options = EdgeOptions()
