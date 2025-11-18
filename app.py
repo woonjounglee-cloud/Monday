@@ -727,6 +727,10 @@ def open_testhub():
                     excel_btn = wait.until(EC.element_to_be_clickable((By.XPATH, excel_btn_xpath)))
                     logger.info("검색 결과 로드 완료. 엑셀 버튼 클릭 가능")
 
+                    # 엑셀 버튼 클릭 전 5초 추가 대기
+                    logger.info("엑셀 버튼 클릭 전 5초 대기 중...")
+                    time.sleep(5)
+
                     # 엑셀 다운로드 버튼 클릭
                     excel_btn.click()
                     logger.info(f"클릭 완료 (6/6): {excel_btn_xpath}")
