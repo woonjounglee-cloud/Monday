@@ -769,15 +769,19 @@ def open_testhub():
                     }
                     return
 
-                # 다운로드된 파일 찾기
+                # 다운로드된 파일 찾기 (TGVerifyDetailList로 시작하는 파일)
                 download_path = download_dir
                 if os.path.exists(download_path):
-                    # 가장 최근 다운로드된 엑셀 파일 찾기
+                    # TGVerifyDetailList로 시작하는 가장 최근 엑셀 파일 찾기
                     excel_files = []
                     for file in os.listdir(download_path):
-                        if file.endswith(('.xlsx', '.xls')) and not file.startswith('~$'):
+                        if (file.startswith('TGVerifyDetailList') and
+                            file.endswith(('.xlsx', '.xls')) and
+                            not file.startswith('~$')):
                             file_path = os.path.join(download_path, file)
                             excel_files.append((file_path, os.path.getmtime(file_path)))
+
+                    logger.info(f"TGVerifyDetailList 파일 검색 결과: {len(excel_files)}개 발견")
 
                     if excel_files:
                         # 가장 최근 파일 선택
@@ -809,9 +813,11 @@ def open_testhub():
                             # 모델담당자 DB 로드
                             processor.model_manager_df = load_model_database()
 
-                            # 파일 처리
-                            output_filename = generate_output_filename()
+                            # 출력 파일명 생성 (주차 계산)
+                            week_number = processor.get_week_number()
+                            output_filename = f"{week_number}_FA_과제일정.xlsx"
                             output_path = os.path.join(OUTPUT_FOLDER, output_filename)
+                            logger.info(f"출력 파일 경로: {output_path}")
 
                             success = processor.process_schedule(latest_file, output_path)
 
