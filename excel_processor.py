@@ -414,6 +414,10 @@ class ExcelProcessor:
                 if 'AP/CP_lookup' in result_df.columns:
                     schedule_df['AP/CP'] = result_df['AP/CP_lookup'].fillna('')
 
+                # 임시 컬럼 제거
+                if '개발모델명_clean' in schedule_df.columns:
+                    schedule_df = schedule_df.drop(columns=['개발모델명_clean'])
+
                 # 송수화 시험은 모델담당자를 무조건 '이운정'으로 설정
                 if '검증항목' in schedule_df.columns:
                     songsuha_mask = schedule_df['검증항목'].astype(str).str.contains('송수화', na=False)
