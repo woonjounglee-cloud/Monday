@@ -684,12 +684,16 @@
 
         // 검증허브 열기
         async function openTestHub() {
+            console.log('검증허브 열기 버튼 클릭됨');
             try {
+                console.log('API 요청 시작: /api/open-testhub');
                 const response = await fetch('/api/open-testhub', {
                     method: 'POST'
                 });
 
+                console.log('API 응답 상태:', response.status);
                 const result = await response.json();
+                console.log('API 응답 결과:', result);
 
                 if (result.success) {
                     showMessage('scheduleMessage', 'success', result.message);
@@ -697,6 +701,7 @@
                     showMessage('scheduleMessage', 'error', result.message);
                 }
             } catch (error) {
+                console.error('검증허브 열기 에러:', error);
                 showMessage('scheduleMessage', 'error', '검증허브 열기 실패: ' + error.message);
             }
         }

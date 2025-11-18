@@ -552,8 +552,10 @@ def delete_model_info():
 @app.route('/api/open-testhub', methods=['POST'])
 def open_testhub():
     """검증허브 URL을 Microsoft Edge로 열고 자동으로 요소 클릭"""
+    logger.info("=== 검증허브 열기 요청 수신 ===")
     try:
         url = TESTHUB_URL
+        logger.info(f"TestHub URL: {url}")
 
         # Edge WebDriver 경로 찾기
         def find_edge_driver():
@@ -592,6 +594,7 @@ def open_testhub():
         # WebDriver 초기화
         driver = None
         driver_path = find_edge_driver()
+        logger.info(f"Edge WebDriver 검색 결과: {driver_path}")
 
         try:
             if driver_path:
