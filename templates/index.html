@@ -546,6 +546,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
             <button class="tab" onclick="switchTab('modelInfo')">🔍 Model Info.</button>
+            <button class="tab" onclick="switchTab('assistant')">🤖 Assistant</button>
         </div>
 
         <!-- Schedule 탭 -->
@@ -679,6 +680,63 @@
 
             <div class="message" id="modelMessage"></div>
         </div>
+
+        <!-- Assistant 탭 -->
+        <div id="assistantTab" class="tab-content">
+            <div class="search-section">
+                <div class="section-title">💰 OT 수당 계산기</div>
+
+                <div class="form-row" style="margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label class="form-label">OT 시간</label>
+                        <input type="number" id="otHours" placeholder="OT 시간 입력"
+                               oninput="calculateOT()" min="0" step="0.5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">추가 OT 시간</label>
+                        <input type="number" id="additionalOtHours" placeholder="추가 OT 시간 입력"
+                               oninput="calculateOT()" min="0" step="0.5">
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>세전수당</th>
+                                <th>총 입금(세후)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>기본 OT</strong></td>
+                                <td id="basicPreTax">-</td>
+                                <td id="basicAfterTax">-</td>
+                            </tr>
+                            <tr>
+                                <td><strong>추가 OT 포함</strong></td>
+                                <td id="totalPreTax">-</td>
+                                <td id="totalAfterTax">-</td>
+                            </tr>
+                            <tr style="background: #f0f4ff;">
+                                <td colspan="3" style="text-align: center;">
+                                    <strong>총 OT 시간: <span id="totalOtHours">0</span>시간</strong>
+                                    <span id="heartDisplay" style="margin-left: 20px; font-size: 24px;"></span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="message" style="margin-top: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; font-size: 14px;">
+                    <strong>📌 계산 공식</strong><br>
+                    • 세전수당 = (OT 시간 - 14) × 25,000 × 1.5<br>
+                    • 총 입금(세후) = 세전수당 × 0.76 (24% 세금 공제)<br>
+                    • 하트 표시: ≤26시간 ❤️ | 27~38시간 ❤️❤️ | >38시간 ❤️❤️❤️
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -761,6 +819,9 @@
                 document.querySelector('.tab:nth-child(2)').classList.add('active');
                 document.getElementById('modelInfoTab').classList.add('active');
                 loadAllModels(); // Model Info 탭 열 때 전체 데이터 로드
+            } else if (tabName === 'assistant') {
+                document.querySelector('.tab:nth-child(3)').classList.add('active');
+                document.getElementById('assistantTab').classList.add('active');
             }
         }
 
@@ -907,6 +968,57 @@
                 console.error('폴더 열기 에러:', error);
                 showMessage('scheduleMessage', 'error', '폴더 열기 실패: ' + error.message);
             }
+        }
+
+        // ========== Assistant 탭 기능 ==========
+
+        function calculateOT() {
+            // 입력값 가져오기
+            const otHours = parseFloat(document.getElementById('otHours').value) || 0;
+            const additionalOtHours = parseFloat(document.getElementById('additionalOtHours').value) || 0;
+
+            // 총 OT 시간 계산
+            const totalHours = otHours + additionalOtHours;
+
+            // 기본 OT 계산 (OT 시간만)
+            const basicPreTax = (otHours - 14) * 25000 * 1.5;
+            const basicAfterTax = basicPreTax * 0.76;
+
+            // 추가 OT 포함 계산 (OT 시간 + 추가 OT 시간)
+            const totalPreTax = (totalHours - 14) * 25000 * 1.5;
+            const totalAfterTax = totalPreTax * 0.76;
+
+            // 결과 표시
+            document.getElementById('basicPreTax').textContent =
+                basicPreTax >= 0 ? formatCurrency(basicPreTax) : '-';
+            document.getElementById('basicAfterTax').textContent =
+                basicAfterTax >= 0 ? formatCurrency(basicAfterTax) : '-';
+
+            document.getElementById('totalPreTax').textContent =
+                totalPreTax >= 0 ? formatCurrency(totalPreTax) : '-';
+            document.getElementById('totalAfterTax').textContent =
+                totalAfterTax >= 0 ? formatCurrency(totalAfterTax) : '-';
+
+            // 총 OT 시간 표시
+            document.getElementById('totalOtHours').textContent = totalHours.toFixed(1);
+
+            // 하트 표시
+            let hearts = '';
+            if (totalHours <= 26) {
+                hearts = '❤️';
+            } else if (totalHours <= 38) {
+                hearts = '❤️❤️';
+            } else {
+                hearts = '❤️❤️❤️';
+            }
+            document.getElementById('heartDisplay').textContent = hearts;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('ko-KR', {
+                style: 'currency',
+                currency: 'KRW'
+            }).format(Math.round(amount));
         }
 
         // ========== Model Info 탭 기능 ==========
