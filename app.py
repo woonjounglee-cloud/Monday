@@ -44,12 +44,25 @@ def allowed_file(filename):
 def load_model_database():
     """모델담당자 데이터베이스 로드"""
     try:
+        # 올바른 컬럼 순서 정의
+        correct_columns = ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
+
         if os.path.exists(MODEL_DB_PATH):
             df = pd.read_excel(MODEL_DB_PATH, engine='openpyxl')
+
+            # 컬럼이 모두 존재하는지 확인
+            missing_cols = [col for col in correct_columns if col not in df.columns]
+            if missing_cols:
+                logger.warning(f"누락된 컬럼: {missing_cols}")
+                for col in missing_cols:
+                    df[col] = ''
+
+            # 컬럼 순서를 올바르게 재정렬
+            df = df[correct_columns]
             return df
         else:
             # 데이터베이스 파일이 없으면 빈 데이터프레임 생성
-            df = pd.DataFrame(columns=['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP'])
+            df = pd.DataFrame(columns=correct_columns)
             df.to_excel(MODEL_DB_PATH, index=False, engine='openpyxl')
             logger.info(f"새 모델담당자 데이터베이스 생성: {MODEL_DB_PATH}")
             return df
@@ -61,6 +74,13 @@ def load_model_database():
 def save_model_database(df):
     """모델담당자 데이터베이스 저장"""
     try:
+        # 올바른 컬럼 순서 정의
+        correct_columns = ['과제명', '개발모델명', '검증PL', '모델담당자', 'AP/CP']
+
+        # 컬럼 순서를 올바르게 재정렬
+        if all(col in df.columns for col in correct_columns):
+            df = df[correct_columns]
+
         df.to_excel(MODEL_DB_PATH, index=False, engine='openpyxl')
         logger.info(f"모델담당자 데이터베이스 저장 완료: {len(df)} 행")
         return True
