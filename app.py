@@ -970,8 +970,8 @@ def open_output_folder():
         system = platform.system()
 
         if system == 'Windows':
-            # Windows: explorer를 사용하여 폴더 열기
-            os.startfile(abs_output_folder)
+            # Windows: explorer 명령어로 새 창으로 포커스를 받으며 열기
+            subprocess.Popen(['explorer', abs_output_folder])
             logger.info(f"Windows 탐색기로 폴더 열기: {abs_output_folder}")
         elif system == 'Darwin':  # macOS
             subprocess.Popen(['open', abs_output_folder])
