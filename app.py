@@ -15,13 +15,14 @@ import subprocess
 import platform
 import webbrowser
 import time
+import shutil
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.edge.service import Service as EdgeService
-from selenium.webdriver.edge.options import Options as EdgeOptions
+from selenium.webdriver.chrome.service import Service as ChromeService
+from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from webdriver_manager.chrome import ChromeDriverManager
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -554,53 +555,57 @@ def delete_model_info():
 
 @app.route('/api/open-testhub', methods=['POST'])
 def open_testhub():
-    """검증허브 URL을 Microsoft Edge로 열고 자동으로 요소 클릭"""
+    """검증허브 URL을 Chrome으로 열고 자동으로 요소 클릭"""
     logger.info("=== 검증허브 열기 요청 수신 ===")
     try:
         url = TESTHUB_URL
         logger.info(f"TestHub URL: {url}")
 
-        # Edge WebDriver 경로 찾기
-        def find_edge_driver():
-            """Edge WebDriver 경로를 찾는 함수"""
+        # Chrome WebDriver 경로 찾기
+        def find_chrome_driver():
+            """Chrome WebDriver 경로를 찾는 함수"""
             import glob
 
             # 1. 프로젝트 폴더의 drivers 디렉토리 확인
-            project_driver = os.path.join(os.path.dirname(__file__), 'drivers', 'msedgedriver.exe')
+            project_driver = os.path.join(os.path.dirname(__file__), 'drivers', 'chromedriver.exe')
             if os.path.exists(project_driver):
                 logger.info(f"프로젝트 폴더의 드라이버 사용: {project_driver}")
                 return project_driver
 
-            # 2. Edge 설치 경로에서 msedgedriver.exe 찾기
-            edge_base_paths = [
-                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application',
-                'C:\\Program Files\\Microsoft\\Edge\\Application',
+            # 2. Chrome 설치 경로에서 chromedriver.exe 찾기
+            chrome_base_paths = [
+                'C:\\Program Files\\Google\\Chrome\\Application',
+                'C:\\Program Files (x86)\\Google\\Chrome\\Application',
             ]
 
-            for base_path in edge_base_paths:
+            for base_path in chrome_base_paths:
                 if os.path.exists(base_path):
                     # 버전 폴더들을 검색
-                    pattern = os.path.join(base_path, '*', 'msedgedriver.exe')
+                    pattern = os.path.join(base_path, '*', 'chromedriver.exe')
                     drivers = glob.glob(pattern)
                     if drivers:
                         driver_path = drivers[0]  # 첫 번째 발견된 드라이버 사용
-                        logger.info(f"Edge 설치 폴더의 드라이버 사용: {driver_path}")
+                        logger.info(f"Chrome 설치 폴더의 드라이버 사용: {driver_path}")
                         return driver_path
 
             return None
 
-        # 다운로드 경로 설정
-        download_dir = r'C:\Users\woonjoung.lee\PycharmProjects\FP_Manager'
+        # 다운로드 경로 설정 (Windows 기본 다운로드 폴더)
+        download_dir = r'C:\Users\woonjoung.lee\Downloads'
+        # 프로젝트 폴더 경로
+        project_dir = r'C:\Users\woonjoung.lee\PycharmProjects\FP_Manager'
 
-        # Edge WebDriver 설정
-        edge_options = EdgeOptions()
+        # Chrome WebDriver 설정
+        chrome_options = ChromeOptions()
         # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
-        # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
+        # chrome_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
 
         # 팝업 및 알림 비활성화
-        edge_options.add_argument('--disable-popup-blocking')
-        edge_options.add_argument('--disable-notifications')
-        edge_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--disable-popup-blocking')
+        chrome_options.add_argument('--disable-notifications')
+        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+        chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--no-sandbox')
 
         # 다운로드 폴더 설정 (자동 다운로드, 팝업 없음)
         prefs = {
@@ -612,33 +617,39 @@ def open_testhub():
             'profile.default_content_setting_values.automatic_downloads': 1,
             'profile.content_settings.exceptions.automatic_downloads.*.setting': 1
         }
-        edge_options.add_experimental_option('prefs', prefs)
-        edge_options.add_experimental_option('excludeSwitches', ['enable-automation'])
-        edge_options.add_experimental_option('useAutomationExtension', False)
+        chrome_options.add_experimental_option('prefs', prefs)
+        chrome_options.add_experimental_option('excludeSwitches', ['enable-automation', 'enable-logging'])
+        chrome_options.add_experimental_option('useAutomationExtension', False)
 
         # WebDriver 초기화
         driver = None
-        driver_path = find_edge_driver()
-        logger.info(f"Edge WebDriver 검색 결과: {driver_path}")
+        driver_path = find_chrome_driver()
+        logger.info(f"Chrome WebDriver 검색 결과: {driver_path}")
 
         try:
             if driver_path:
                 # 찾은 드라이버 경로 사용
-                service = EdgeService(executable_path=driver_path)
-                driver = webdriver.Edge(service=service, options=edge_options)
+                service = ChromeService(executable_path=driver_path)
+                driver = webdriver.Chrome(service=service, options=chrome_options)
                 logger.info(f"WebDriver 초기화 성공: {driver_path}")
             else:
-                # 드라이버를 찾지 못한 경우 안내 메시지
-                return jsonify({
-                    'success': False,
-                    'message': 'Edge WebDriver를 찾을 수 없습니다.\n\n다음 중 하나를 수행해주세요:\n1. https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/ 에서 Edge 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 msedgedriver.exe로 저장\n2. 인터넷에 연결하여 자동 다운로드 허용'
-                }), 500
+                # 드라이버를 찾지 못한 경우 webdriver-manager 사용
+                try:
+                    service = ChromeService(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=chrome_options)
+                    logger.info("webdriver-manager로 Chrome WebDriver 초기화 성공")
+                except Exception as wdm_error:
+                    logger.error(f"webdriver-manager 실패: {wdm_error}")
+                    return jsonify({
+                        'success': False,
+                        'message': 'Chrome WebDriver를 찾을 수 없습니다.\n\n다음 중 하나를 수행해주세요:\n1. https://chromedriver.chromium.org/downloads 에서 Chrome 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 chromedriver.exe로 저장\n2. 인터넷에 연결하여 자동 다운로드 허용'
+                    }), 500
 
         except Exception as e:
             logger.error(f"WebDriver 초기화 실패: {e}")
             return jsonify({
                 'success': False,
-                'message': f'Edge WebDriver를 초기화할 수 없습니다.\n\n오류: {str(e)}\n\nhttps://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/ 에서 Edge 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 msedgedriver.exe로 저장해주세요.'
+                'message': f'Chrome WebDriver를 초기화할 수 없습니다.\n\n오류: {str(e)}\n\nhttps://chromedriver.chromium.org/downloads 에서 Chrome 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 chromedriver.exe로 저장해주세요.'
             }), 500
 
         # 백그라운드에서 실행 (비동기)
@@ -770,8 +781,24 @@ def open_testhub():
 
                     if excel_files:
                         # 가장 최근 파일 선택
-                        latest_file = max(excel_files, key=lambda x: x[1])[0]
-                        logger.info(f"다운로드된 파일 발견: {latest_file}")
+                        downloaded_file = max(excel_files, key=lambda x: x[1])[0]
+                        logger.info(f"다운로드된 파일 발견: {downloaded_file}")
+
+                        # 프로젝트 폴더로 파일 복사
+                        try:
+                            os.makedirs(project_dir, exist_ok=True)
+                            filename = os.path.basename(downloaded_file)
+                            project_file = os.path.join(project_dir, filename)
+
+                            shutil.copy2(downloaded_file, project_file)
+                            logger.info(f"파일을 프로젝트 폴더로 복사: {downloaded_file} → {project_file}")
+
+                            # 복사된 파일로 처리
+                            latest_file = project_file
+                        except Exception as copy_error:
+                            logger.error(f"파일 복사 실패: {copy_error}")
+                            # 복사 실패 시 다운로드 경로의 파일 사용
+                            latest_file = downloaded_file
 
                         # 파일 처리
                         try:
