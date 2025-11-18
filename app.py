@@ -11,6 +11,8 @@ from werkzeug.utils import secure_filename
 from excel_processor import ExcelProcessor
 import logging
 from datetime import datetime
+import subprocess
+import platform
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -34,6 +36,9 @@ os.makedirs(DB_FOLDER, exist_ok=True)
 
 # 모델담당자 데이터베이스 파일 경로
 MODEL_DB_PATH = os.path.join(DB_FOLDER, 'model_manager.xlsx')
+
+# 검증허브 URL (사용자가 수정 가능)
+TESTHUB_URL = os.getenv('TESTHUB_URL', 'https://example.com')  # 실제 URL로 변경 필요
 
 
 def allowed_file(filename):
@@ -527,6 +532,49 @@ def delete_model_info():
 
     except Exception as e:
         logger.error(f"모델 정보 삭제 실패: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'message': f'오류 발생: {str(e)}'
+        }), 500
+
+
+@app.route('/api/open-testhub', methods=['POST'])
+def open_testhub():
+    """검증허브 URL을 Microsoft Edge로 열기"""
+    try:
+        url = TESTHUB_URL
+        system = platform.system()
+
+        if system == 'Windows':
+            # Windows에서 Edge 실행
+            subprocess.Popen(['cmd', '/c', 'start', 'msedge', url], shell=True)
+            logger.info(f"Microsoft Edge로 TestHub 열기: {url}")
+        elif system == 'Darwin':  # macOS
+            subprocess.Popen(['open', '-a', 'Microsoft Edge', url])
+            logger.info(f"Microsoft Edge로 TestHub 열기 (macOS): {url}")
+        elif system == 'Linux':
+            # Linux에서 Edge 실행 시도
+            try:
+                subprocess.Popen(['microsoft-edge', url])
+            except FileNotFoundError:
+                subprocess.Popen(['xdg-open', url])
+            logger.info(f"브라우저로 TestHub 열기 (Linux): {url}")
+        else:
+            return jsonify({
+                'success': False,
+                'message': '지원하지 않는 운영체제입니다.'
+            }), 400
+
+        return jsonify({
+            'success': True,
+            'message': f'검증허브를 Microsoft Edge로 열었습니다.',
+            'url': url
+        })
+
+    except Exception as e:
+        logger.error(f"TestHub 열기 실패: {e}")
         import traceback
         logger.error(traceback.format_exc())
         return jsonify({

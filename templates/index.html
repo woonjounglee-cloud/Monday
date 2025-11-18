@@ -484,6 +484,56 @@
             font-size: 14px;
             margin-top: 10px;
         }
+
+        /* Schedule 탭 2열 레이아웃 */
+        .schedule-top-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .testhub-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .testhub-section h3 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .btn-testhub {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 40px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-testhub:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 12px;
+            border: 2px solid #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -500,22 +550,35 @@
 
         <!-- Schedule 탭 -->
         <div id="scheduleTab" class="tab-content active">
-            <form id="uploadForm" enctype="multipart/form-data">
-                <div class="section-title">📊 일정 파일 업로드</div>
-
-                <div class="form-group">
-                    <label class="form-label">Schedule_File</label>
-                    <div class="file-input-wrapper">
-                        <label for="schedule_file" class="file-input-button">파일 선택</label>
-                        <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
-                        <span class="file-name" id="schedule_file_name">선택된 파일 없음</span>
-                    </div>
+            <div class="schedule-top-section">
+                <!-- 왼쪽: 검증허브 의뢰조회 -->
+                <div class="testhub-section">
+                    <h3>🔍 검증허브 의뢰조회</h3>
+                    <button class="btn-testhub" onclick="openTestHub()">
+                        검증허브 열기
+                    </button>
                 </div>
 
-                <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
-                    📥 일정 처리 시작
-                </button>
-            </form>
+                <!-- 오른쪽: 일정 파일 업로드 -->
+                <div class="upload-section">
+                    <form id="uploadForm" enctype="multipart/form-data">
+                        <div class="section-title">📊 일정 파일 업로드</div>
+
+                        <div class="form-group">
+                            <label class="form-label">Schedule_File</label>
+                            <div class="file-input-wrapper">
+                                <label for="schedule_file" class="file-input-button">파일 선택</label>
+                                <input type="file" id="schedule_file" name="schedule_file" accept=".xlsx,.xls" required>
+                                <span class="file-name" id="schedule_file_name">선택된 파일 없음</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 20px;">
+                            📥 일정 처리 시작
+                        </button>
+                    </form>
+                </div>
+            </div>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -618,6 +681,25 @@
         let currentScheduleDownloadUrl = '';
         let currentSchedulePreviewUrl = '';
         let schedulePreviewData = null;
+
+        // 검증허브 열기
+        async function openTestHub() {
+            try {
+                const response = await fetch('/api/open-testhub', {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage('scheduleMessage', 'success', result.message);
+                } else {
+                    showMessage('scheduleMessage', 'error', result.message);
+                }
+            } catch (error) {
+                showMessage('scheduleMessage', 'error', '검증허브 열기 실패: ' + error.message);
+            }
+        }
 
         // 탭 전환
         function switchTab(tabName) {
