@@ -43,3 +43,7 @@ Thumbs.db
 
 # 로그 파일
 *.log
+
+# WebDriver 실행 파일 (사용자가 직접 다운로드)
+drivers/*.exe
+drivers/*.zip

@@ -555,30 +555,62 @@ def open_testhub():
     try:
         url = TESTHUB_URL
 
+        # Edge WebDriver 경로 찾기
+        def find_edge_driver():
+            """Edge WebDriver 경로를 찾는 함수"""
+            import glob
+
+            # 1. 프로젝트 폴더의 drivers 디렉토리 확인
+            project_driver = os.path.join(os.path.dirname(__file__), 'drivers', 'msedgedriver.exe')
+            if os.path.exists(project_driver):
+                logger.info(f"프로젝트 폴더의 드라이버 사용: {project_driver}")
+                return project_driver
+
+            # 2. Edge 설치 경로에서 msedgedriver.exe 찾기
+            edge_base_paths = [
+                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application',
+                'C:\\Program Files\\Microsoft\\Edge\\Application',
+            ]
+
+            for base_path in edge_base_paths:
+                if os.path.exists(base_path):
+                    # 버전 폴더들을 검색
+                    pattern = os.path.join(base_path, '*', 'msedgedriver.exe')
+                    drivers = glob.glob(pattern)
+                    if drivers:
+                        driver_path = drivers[0]  # 첫 번째 발견된 드라이버 사용
+                        logger.info(f"Edge 설치 폴더의 드라이버 사용: {driver_path}")
+                        return driver_path
+
+            return None
+
         # Edge WebDriver 설정
         edge_options = EdgeOptions()
         # 브라우저를 백그라운드에서 실행하지 않음 (사용자가 볼 수 있도록)
         # edge_options.add_argument('--headless')  # 주석 처리하여 화면에 표시
 
-        # WebDriver 초기화 (로컬 Edge 사용)
+        # WebDriver 초기화
         driver = None
+        driver_path = find_edge_driver()
+
         try:
-            # 먼저 시스템의 msedgedriver를 찾아서 사용 시도
-            try:
-                driver = webdriver.Edge(options=edge_options)
-                logger.info("로컬 Edge WebDriver 사용")
-            except Exception as local_error:
-                logger.warning(f"로컬 WebDriver 실패, webdriver-manager 시도: {local_error}")
-                # 로컬에서 실패하면 webdriver-manager 사용
-                service = EdgeService(EdgeChromiumDriverManager().install())
+            if driver_path:
+                # 찾은 드라이버 경로 사용
+                service = EdgeService(executable_path=driver_path)
                 driver = webdriver.Edge(service=service, options=edge_options)
-                logger.info("webdriver-manager로 Edge WebDriver 초기화 성공")
+                logger.info(f"WebDriver 초기화 성공: {driver_path}")
+            else:
+                # 드라이버를 찾지 못한 경우 안내 메시지
+                return jsonify({
+                    'success': False,
+                    'message': 'Edge WebDriver를 찾을 수 없습니다.\n\n다음 중 하나를 수행해주세요:\n1. https://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/ 에서 Edge 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 msedgedriver.exe로 저장\n2. 인터넷에 연결하여 자동 다운로드 허용'
+                }), 500
 
         except Exception as e:
             logger.error(f"WebDriver 초기화 실패: {e}")
             return jsonify({
                 'success': False,
-                'message': f'Edge WebDriver를 초기화할 수 없습니다. Edge 브라우저가 설치되어 있는지 확인해주세요. 오류: {str(e)}'
+                'message': f'Edge WebDriver를 초기화할 수 없습니다.\n\n오류: {str(e)}\n\nhttps://developer.microsoft.com/en-us/microsoft-edge/tools/webdriver/ 에서 Edge 버전에 맞는 WebDriver를 다운로드하여 프로젝트의 drivers 폴더에 msedgedriver.exe로 저장해주세요.'
             }), 500
 
         # 백그라운드에서 실행 (비동기)
