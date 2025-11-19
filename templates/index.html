@@ -686,26 +686,24 @@
             <div class="search-section">
                 <div class="section-title">💰 OT 수당 계산기</div>
 
-                <div class="form-row" style="margin-bottom: 20px;">
-                    <div class="form-group">
-                        <label class="form-label">OT 시간</label>
-                        <input type="number" id="otHours" placeholder="OT 시간 입력"
-                               oninput="calculateOT()" min="0" step="0.5">
+                <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label class="form-label" style="margin-bottom: 0; white-space: nowrap;">OT 시간</label>
+                        <input type="number" id="otHours" placeholder="입력"
+                               oninput="calculateOT()" min="0" step="0.5"
+                               style="width: 100px;">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">추가 OT 시간</label>
-                        <input type="number" id="additionalOtHours" placeholder="추가 OT 시간 입력"
-                               oninput="calculateOT()" min="0" step="0.5">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label class="form-label" style="margin-bottom: 0; white-space: nowrap;">추가 OT 시간</label>
+                        <input type="number" id="additionalOtHours" placeholder="입력"
+                               oninput="calculateOT()" min="0" step="0.5"
+                               style="width: 100px;">
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">D-Day 사용</label>
-                        <div style="padding-top: 8px;">
-                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" id="useDDay" onchange="calculateOT()"
-                                       style="width: 20px; height: 20px; cursor: pointer;">
-                                <span style="color: #333; font-size: 14px;">OT - 8시간</span>
-                            </label>
-                        </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label class="form-label" style="margin-bottom: 0; white-space: nowrap;">D-Day 사용</label>
+                        <input type="checkbox" id="useDDay" onchange="calculateOT()"
+                               style="width: 20px; height: 20px; cursor: pointer;">
+                        <span style="color: #333; font-size: 14px;">OT - 8시간</span>
                     </div>
                 </div>
 
@@ -742,8 +740,8 @@
                 <div class="message" style="margin-top: 20px; padding: 15px; background: #f0f4ff; border-radius: 8px; font-size: 14px;">
                     <strong>📌 계산 공식</strong><br>
                     • D-Day 사용 체크 시: OT 시간에서 -8시간 적용<br>
-                    • 세전수당 = (OT 시간 - 14) × 25,000 × 1.5<br>
-                    • 총 입금(세후) = 세전수당 × 0.76 (24% 세금 공제)<br>
+                    • 세전수당 = (OT 시간 - 14) × 30,796 × 1.5<br>
+                    • 총 입금(세후) = 세전수당 × 0.808 (24% 세금의 80% 공제)<br>
                     • 하트 표시: ≤26시간 ❤️ | 27~38시간 ❤️❤️ | >38시간 ❤️❤️❤️
                 </div>
             </div>
@@ -998,12 +996,12 @@
             const totalHours = otHours + additionalOtHours;
 
             // 기본 OT 계산 (OT 시간만)
-            const basicPreTax = (otHours - 14) * 25000 * 1.5;
-            const basicAfterTax = basicPreTax * 0.76;
+            const basicPreTax = (otHours - 14) * 30796 * 1.5;
+            const basicAfterTax = basicPreTax * 0.808;
 
             // 추가 OT 포함 계산 (OT 시간 + 추가 OT 시간)
-            const totalPreTax = (totalHours - 14) * 25000 * 1.5;
-            const totalAfterTax = totalPreTax * 0.76;
+            const totalPreTax = (totalHours - 14) * 30796 * 1.5;
+            const totalAfterTax = totalPreTax * 0.808;
 
             // 결과 표시
             document.getElementById('basicPreTax').textContent =
