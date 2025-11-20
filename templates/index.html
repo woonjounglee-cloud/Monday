@@ -541,7 +541,7 @@
             justify-content: center;
             align-items: center;
             gap: 20px;
-            margin: 7px 0;
+            margin: 3px 0;
         }
 
         .current-month {
@@ -885,8 +885,21 @@
         <div class="modal-content">
             <div class="modal-header">일정 추가/수정</div>
             <div class="form-group">
-                <label class="form-label">일정 내용</label>
-                <input type="text" id="scheduleText" placeholder="일정을 입력하세요">
+                <label class="form-label">검증 모델</label>
+                <input type="text" id="scheduleText" placeholder="검증 모델을 입력하세요">
+            </div>
+            <div class="form-group">
+                <label class="form-label">일정 구분 *</label>
+                <div style="display: flex; gap: 20px; margin-top: 8px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="scheduleType" value="무인" id="typeUnmanned" style="margin-right: 5px;">
+                        <span>무인</span>
+                    </label>
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="radio" name="scheduleType" value="출장" id="typeBusinessTrip" style="margin-right: 5px;">
+                        <span>출장</span>
+                    </label>
+                </div>
             </div>
             <div class="form-group">
                 <label class="form-label">선택된 기간</label>
@@ -992,7 +1005,7 @@
         // 달력 데이터 구조
         let currentYear = 2025;
         let currentMonth = 11; // November
-        let scheduleData = {}; // { 'person|category|date': 'schedule text' }
+        let scheduleData = {}; // { 'person|category|date': { text: '...', type: '무인/출장' } }
         let dragStartCell = null;
         let dragEndCell = null;
         let isDragging = false;
@@ -1253,16 +1266,33 @@
             const dateRange = document.getElementById('scheduleDateRange');
             const scheduleText = document.getElementById('scheduleText');
             const deleteBtn = document.getElementById('deleteScheduleBtn');
+            const typeUnmanned = document.getElementById('typeUnmanned');
+            const typeBusinessTrip = document.getElementById('typeBusinessTrip');
+
+            // 라디오 버튼 초기화
+            typeUnmanned.checked = false;
+            typeBusinessTrip.checked = false;
 
             if (cells.length === 1) {
                 const cell = cells[0];
                 const key = getScheduleKey(cell);
 
                 dateRange.value = `${cell.dataset.person} - ${cell.dataset.date}`;
-                scheduleText.value = scheduleData[key] || '';
 
-                // 기존 일정이 있으면 삭제 버튼 표시
-                deleteBtn.style.display = scheduleData[key] ? 'inline-block' : 'none';
+                // 기존 일정이 있으면 데이터 로드
+                if (scheduleData[key]) {
+                    scheduleText.value = scheduleData[key].text || '';
+                    const type = scheduleData[key].type;
+                    if (type === '무인') {
+                        typeUnmanned.checked = true;
+                    } else if (type === '출장') {
+                        typeBusinessTrip.checked = true;
+                    }
+                    deleteBtn.style.display = 'inline-block';
+                } else {
+                    scheduleText.value = '';
+                    deleteBtn.style.display = 'none';
+                }
             } else {
                 const firstCell = cells[0];
                 const lastCell = cells[cells.length - 1];
@@ -1290,17 +1320,29 @@
 
         function saveSchedule() {
             const scheduleText = document.getElementById('scheduleText').value.trim();
+            const typeUnmanned = document.getElementById('typeUnmanned');
+            const typeBusinessTrip = document.getElementById('typeBusinessTrip');
 
             if (!scheduleText) {
-                alert('일정 내용을 입력해주세요.');
+                alert('검증 모델을 입력해주세요.');
                 return;
             }
 
+            // 일정 구분 체크
+            if (!typeUnmanned.checked && !typeBusinessTrip.checked) {
+                alert('일정 구분(무인/출장)을 선택해주세요.');
+                return;
+            }
+
+            const scheduleType = typeUnmanned.checked ? '무인' : '출장';
             const selectedCells = document.querySelectorAll('.day-cell.selected');
 
             selectedCells.forEach(cell => {
                 const key = getScheduleKey(cell);
-                scheduleData[key] = scheduleText;
+                scheduleData[key] = {
+                    text: scheduleText,
+                    type: scheduleType
+                };
             });
 
             saveScheduleData();
@@ -1341,6 +1383,16 @@
             if (saved) {
                 try {
                     scheduleData = JSON.parse(saved);
+
+                    // 기존 문자열 데이터를 새 구조로 마이그레이션
+                    Object.keys(scheduleData).forEach(key => {
+                        if (typeof scheduleData[key] === 'string') {
+                            scheduleData[key] = {
+                                text: scheduleData[key],
+                                type: '무인' // 기본값
+                            };
+                        }
+                    });
                 } catch (e) {
                     console.error('Failed to parse schedule data:', e);
                     scheduleData = {};
@@ -1368,7 +1420,15 @@
                     cell.classList.add('has-schedule');
                     const entry = document.createElement('div');
                     entry.className = 'schedule-entry';
-                    entry.textContent = scheduleData[key];
+
+                    // 데이터 구조 확인
+                    const scheduleInfo = scheduleData[key];
+                    const text = scheduleInfo.text || scheduleInfo;
+                    const type = scheduleInfo.type || '무인';
+
+                    // 타입과 텍스트 함께 표시
+                    entry.textContent = `[${type}] ${text}`;
+
                     entry.onclick = (e) => {
                         e.stopPropagation();
                         // 모든 선택 해제
