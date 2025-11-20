@@ -541,7 +541,7 @@
             justify-content: center;
             align-items: center;
             gap: 20px;
-            margin: 10px 0;
+            margin: 7px 0;
         }
 
         .current-month {
@@ -1170,16 +1170,16 @@
         function handleCellMouseDown(e) {
             if (e.button !== 0) return; // 왼쪽 클릭만
             isDragging = true;
-            dragStartCell = e.target;
-            dragEndCell = e.target;
-            e.target.classList.add('selected');
+            dragStartCell = e.currentTarget; // currentTarget 사용
+            dragEndCell = e.currentTarget;
+            e.currentTarget.classList.add('selected');
             e.preventDefault();
         }
 
         function handleCellMouseOver(e) {
             if (!isDragging) return;
 
-            const target = e.target;
+            const target = e.currentTarget; // currentTarget 사용
             if (!target.classList.contains('day-cell')) return;
 
             // 같은 행(담당자)의 셀만 선택 가능
@@ -1210,7 +1210,7 @@
 
             if (isDragging) return; // 드래그 중이면 무시
 
-            const cell = e.target;
+            const cell = e.currentTarget; // currentTarget 사용
             // 일정 추가 모달 열기
             cell.classList.add('selected');
             openScheduleModal([cell]);
@@ -1339,23 +1339,42 @@
         function loadScheduleData() {
             const saved = localStorage.getItem('mondayScheduleData');
             if (saved) {
-                scheduleData = JSON.parse(saved);
+                try {
+                    scheduleData = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Failed to parse schedule data:', e);
+                    scheduleData = {};
+                }
             }
 
             // 달력에 일정 표시
             Object.keys(scheduleData).forEach(key => {
                 const [person, category, date] = key.split('|');
-                const cell = document.querySelector(
-                    `.day-cell[data-person="${person}"][data-category="${category}"][data-date="${date}"]`
-                );
 
-                if (cell) {
+                // 카테고리 이름이 줄바꿈 문자를 포함할 수 있으므로 정확히 매칭
+                const cells = document.querySelectorAll('.day-cell');
+                let cell = null;
+
+                for (let c of cells) {
+                    if (c.dataset.person === person &&
+                        c.dataset.category === category &&
+                        c.dataset.date === date) {
+                        cell = c;
+                        break;
+                    }
+                }
+
+                if (cell && scheduleData[key]) {
                     cell.classList.add('has-schedule');
                     const entry = document.createElement('div');
                     entry.className = 'schedule-entry';
                     entry.textContent = scheduleData[key];
                     entry.onclick = (e) => {
                         e.stopPropagation();
+                        // 모든 선택 해제
+                        document.querySelectorAll('.day-cell.selected').forEach(c => {
+                            c.classList.remove('selected');
+                        });
                         cell.classList.add('selected');
                         openScheduleModal([cell]);
                     };
