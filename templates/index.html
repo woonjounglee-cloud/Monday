@@ -603,9 +603,17 @@
             cursor: pointer;
             transition: all 0.2s;
             user-select: none;
+            width: 80px;
+            min-width: 80px;
+            max-width: 80px;
         }
 
-        .week-table .day-cell:hover {
+        .week-table .day-cell.empty {
+            cursor: default;
+            background: #fafafa;
+        }
+
+        .week-table .day-cell:hover:not(.empty) {
             background: #f0f4ff;
         }
 
@@ -618,6 +626,29 @@
             background: #e7f3ff;
             color: #333;
             font-weight: 500;
+        }
+
+        /* 주말 스타일 */
+        .week-table .day-cell.saturday {
+            background: #e3f2fd;
+        }
+
+        .week-table .day-cell.saturday.has-schedule {
+            background: #bbdefb;
+        }
+
+        .week-table .day-cell.sunday {
+            background: #ffebee;
+        }
+
+        .week-table .day-cell.sunday.has-schedule {
+            background: #ffcdd2;
+        }
+
+        .week-table .day-cell.saturday.selected,
+        .week-table .day-cell.sunday.selected {
+            background: #667eea;
+            color: white;
         }
 
         .schedule-entry {
@@ -1018,22 +1049,35 @@
             const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
             const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay(); // 0=일요일
 
-            // 주차별로 나누기
+            // 주차별로 나누기 (월~일)
             let weeks = [];
             let currentWeek = [];
 
-            // 첫 주 시작 (월요일부터)
-            const startDay = firstDay === 0 ? 1 : (8 - firstDay);
+            // 첫 번째 날의 요일 계산 (월요일 = 1, 일요일 = 0)
+            let startDayOfWeek = firstDay === 0 ? 6 : firstDay - 1; // 월요일 기준으로 변환 (월=0, 일=6)
 
+            // 첫 주의 빈 칸 추가 (월요일부터 시작)
+            for (let i = 0; i < startDayOfWeek; i++) {
+                currentWeek.push(null); // null은 빈 칸
+            }
+
+            // 모든 날짜 추가
             for (let day = 1; day <= daysInMonth; day++) {
-                const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
                 currentWeek.push(day);
 
-                // 일요일이거나 마지막 날이면 주차 완료
-                if (dayOfWeek === 0 || day === daysInMonth) {
+                // 일요일이면 주차 완료 (currentWeek.length % 7 === 0)
+                if (currentWeek.length === 7) {
                     weeks.push([...currentWeek]);
                     currentWeek = [];
                 }
+            }
+
+            // 마지막 주의 빈 칸 채우기
+            if (currentWeek.length > 0) {
+                while (currentWeek.length < 7) {
+                    currentWeek.push(null);
+                }
+                weeks.push([...currentWeek]);
             }
 
             // 각 주차별로 테이블 생성
@@ -1055,11 +1099,15 @@
 
             // 첫 번째 행: 요일 헤더
             headerRow.innerHTML = '<th>시험항목</th><th>담당자</th>';
-            days.forEach(day => {
-                const date = new Date(currentYear, currentMonth - 1, day);
-                const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
-                const dayName = dayNames[date.getDay()];
-                headerRow.innerHTML += `<th>${day}일<br>(${dayName})</th>`;
+            const dayNames = ['월', '화', '수', '목', '금', '토', '일'];
+            days.forEach((day, index) => {
+                const dayName = dayNames[index];
+                if (day === null) {
+                    // 빈 날짜는 요일만 표시
+                    headerRow.innerHTML += `<th><br>(${dayName})</th>`;
+                } else {
+                    headerRow.innerHTML += `<th>${day}일<br>(${dayName})</th>`;
+                }
             });
             thead.appendChild(headerRow);
             table.appendChild(thead);
@@ -1086,19 +1134,33 @@
                     nameCell.textContent = person;
                     row.appendChild(nameCell);
 
-                    // 날짜 셀들
-                    days.forEach(day => {
+                    // 날짜 셀들 (월~일 7개)
+                    days.forEach((day, dayIndex) => {
                         const dayCell = document.createElement('td');
                         dayCell.className = 'day-cell';
-                        dayCell.dataset.person = person;
-                        dayCell.dataset.category = category.name;
-                        dayCell.dataset.date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-                        // 이벤트 리스너
-                        dayCell.addEventListener('mousedown', handleCellMouseDown);
-                        dayCell.addEventListener('mouseover', handleCellMouseOver);
-                        dayCell.addEventListener('mouseup', handleCellMouseUp);
-                        dayCell.addEventListener('click', handleCellClick);
+                        if (day === null) {
+                            // 빈 날짜 셀
+                            dayCell.classList.add('empty');
+                        } else {
+                            // 실제 날짜 셀
+                            dayCell.dataset.person = person;
+                            dayCell.dataset.category = category.name;
+                            dayCell.dataset.date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                            // 주말 클래스 추가 (토요일=5, 일요일=6)
+                            if (dayIndex === 5) {
+                                dayCell.classList.add('saturday');
+                            } else if (dayIndex === 6) {
+                                dayCell.classList.add('sunday');
+                            }
+
+                            // 이벤트 리스너
+                            dayCell.addEventListener('mousedown', handleCellMouseDown);
+                            dayCell.addEventListener('mouseover', handleCellMouseOver);
+                            dayCell.addEventListener('mouseup', handleCellMouseUp);
+                            dayCell.addEventListener('click', handleCellClick);
+                        }
 
                         row.appendChild(dayCell);
                     });
