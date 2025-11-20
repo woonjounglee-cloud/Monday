@@ -534,6 +534,165 @@
             border-radius: 12px;
             border: 2px solid #e0e0e0;
         }
+
+        /* Schedule 탭 - 달력 스타일 */
+        .calendar-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .current-month {
+            font-size: 24px;
+            font-weight: 600;
+            color: #667eea;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .calendar-container {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        .week-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .week-table th {
+            background: #667eea;
+            color: white;
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .week-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            min-height: 40px;
+            position: relative;
+        }
+
+        .week-table .category-cell {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            width: 150px;
+        }
+
+        .week-table .name-cell {
+            background: #f0f4ff;
+            font-weight: 500;
+            width: 100px;
+        }
+
+        .week-table .day-cell {
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .week-table .day-cell:hover {
+            background: #f0f4ff;
+        }
+
+        .week-table .day-cell.selected {
+            background: #667eea;
+            color: white;
+        }
+
+        .week-table .day-cell.has-schedule {
+            background: #e7f3ff;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .schedule-entry {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            display: inline-block;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .schedule-entry:hover {
+            background: #5568d3;
+            transform: scale(1.05);
+        }
+
+        /* 일정 추가 모달 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.3);
+            animation: slideIn 0.3s;
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -544,12 +703,13 @@
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('schedule')">📋 Schedule</button>
+            <button class="tab active" onclick="switchTab('request')">📋 Request</button>
+            <button class="tab" onclick="switchTab('schedule')">📅 Schedule</button>
             <button class="tab" onclick="switchTab('modelInfo')">🔍 Model Info.</button>
         </div>
 
-        <!-- Schedule 탭 -->
-        <div id="scheduleTab" class="tab-content active">
+        <!-- Request 탭 -->
+        <div id="requestTab" class="tab-content active">
             <div class="schedule-top-section">
                 <!-- 왼쪽: 검증허브 의뢰조회 -->
                 <div class="testhub-section">
@@ -602,6 +762,23 @@
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- Schedule 탭 -->
+        <div id="scheduleTab" class="tab-content">
+            <div class="section-title">📅 일정 관리</div>
+
+            <div class="calendar-controls">
+                <button class="btn btn-primary" onclick="prevMonth()">◀ 이전 달</button>
+                <span id="currentMonth" class="current-month">2025년 11월</span>
+                <button class="btn btn-primary" onclick="nextMonth()">다음 달 ▶</button>
+            </div>
+
+            <div class="calendar-container" id="calendarContainer">
+                <!-- Calendar will be dynamically generated here -->
+            </div>
+
+            <div class="message" id="calendarMessage"></div>
         </div>
 
         <!-- Model Info 탭 -->
@@ -681,6 +858,26 @@
         </div>
     </div>
 
+    <!-- Schedule Modal -->
+    <div id="scheduleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">일정 추가/수정</div>
+            <div class="form-group">
+                <label class="form-label">일정 내용</label>
+                <input type="text" id="scheduleText" placeholder="일정을 입력하세요">
+            </div>
+            <div class="form-group">
+                <label class="form-label">선택된 기간</label>
+                <input type="text" id="scheduleDateRange" readonly style="background: #f0f0f0;">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeScheduleModal()">취소</button>
+                <button class="btn btn-danger" id="deleteScheduleBtn" onclick="deleteSchedule()" style="display: none;">삭제</button>
+                <button class="btn btn-primary" onclick="saveSchedule()">저장</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // 전역 변수
         let currentScheduleDownloadUrl = '';
@@ -754,17 +951,364 @@
             document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
             // 선택된 탭 활성화
-            if (tabName === 'schedule') {
+            if (tabName === 'request') {
                 document.querySelector('.tab:nth-child(1)').classList.add('active');
-                document.getElementById('scheduleTab').classList.add('active');
-            } else if (tabName === 'modelInfo') {
+                document.getElementById('requestTab').classList.add('active');
+            } else if (tabName === 'schedule') {
                 document.querySelector('.tab:nth-child(2)').classList.add('active');
+                document.getElementById('scheduleTab').classList.add('active');
+                renderCalendar(); // Schedule 탭 열 때 달력 렌더링
+            } else if (tabName === 'modelInfo') {
+                document.querySelector('.tab:nth-child(3)').classList.add('active');
                 document.getElementById('modelInfoTab').classList.add('active');
                 loadAllModels(); // Model Info 탭 열 때 전체 데이터 로드
             }
         }
 
-        // ========== Schedule 탭 기능 ==========
+        // ========== Calendar (Schedule 탭) 기능 ==========
+
+        // 달력 데이터 구조
+        let currentYear = 2025;
+        let currentMonth = 11; // November
+        let scheduleData = {}; // { 'person|category|date': 'schedule text' }
+        let dragStartCell = null;
+        let dragEndCell = null;
+        let isDragging = false;
+
+        // 카테고리와 담당자 정의
+        const categories = [
+            {
+                name: '필드 프로토콜\n(고속주행)',
+                people: ['정치영', '진정한', '오민석', '김은선']
+            },
+            {
+                name: '5G Throughput',
+                people: ['박성배']
+            }
+        ];
+
+        function prevMonth() {
+            currentMonth--;
+            if (currentMonth < 1) {
+                currentMonth = 12;
+                currentYear--;
+            }
+            updateMonthDisplay();
+            renderCalendar();
+        }
+
+        function nextMonth() {
+            currentMonth++;
+            if (currentMonth > 12) {
+                currentMonth = 1;
+                currentYear++;
+            }
+            updateMonthDisplay();
+            renderCalendar();
+        }
+
+        function updateMonthDisplay() {
+            document.getElementById('currentMonth').textContent = `${currentYear}년 ${currentMonth}월`;
+        }
+
+        function renderCalendar() {
+            const container = document.getElementById('calendarContainer');
+            container.innerHTML = '';
+
+            const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+            const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay(); // 0=일요일
+
+            // 주차별로 나누기
+            let weeks = [];
+            let currentWeek = [];
+
+            // 첫 주 시작 (월요일부터)
+            const startDay = firstDay === 0 ? 1 : (8 - firstDay);
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayOfWeek = new Date(currentYear, currentMonth - 1, day).getDay();
+                currentWeek.push(day);
+
+                // 일요일이거나 마지막 날이면 주차 완료
+                if (dayOfWeek === 0 || day === daysInMonth) {
+                    weeks.push([...currentWeek]);
+                    currentWeek = [];
+                }
+            }
+
+            // 각 주차별로 테이블 생성
+            weeks.forEach((week, weekIndex) => {
+                const table = createWeekTable(week, weekIndex);
+                container.appendChild(table);
+            });
+
+            loadScheduleData();
+        }
+
+        function createWeekTable(days, weekIndex) {
+            const table = document.createElement('table');
+            table.className = 'week-table';
+
+            // 헤더 생성
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+
+            // 첫 번째 행: 요일 헤더
+            headerRow.innerHTML = '<th>시험항목</th><th>담당자</th>';
+            days.forEach(day => {
+                const date = new Date(currentYear, currentMonth - 1, day);
+                const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                const dayName = dayNames[date.getDay()];
+                headerRow.innerHTML += `<th>${day}일<br>(${dayName})</th>`;
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // 바디 생성
+            const tbody = document.createElement('tbody');
+
+            categories.forEach(category => {
+                category.people.forEach((person, personIndex) => {
+                    const row = document.createElement('tr');
+
+                    // 카테고리 셀 (첫 번째 사람에게만)
+                    if (personIndex === 0) {
+                        const categoryCell = document.createElement('td');
+                        categoryCell.className = 'category-cell';
+                        categoryCell.textContent = category.name;
+                        categoryCell.rowSpan = category.people.length;
+                        row.appendChild(categoryCell);
+                    }
+
+                    // 담당자 셀
+                    const nameCell = document.createElement('td');
+                    nameCell.className = 'name-cell';
+                    nameCell.textContent = person;
+                    row.appendChild(nameCell);
+
+                    // 날짜 셀들
+                    days.forEach(day => {
+                        const dayCell = document.createElement('td');
+                        dayCell.className = 'day-cell';
+                        dayCell.dataset.person = person;
+                        dayCell.dataset.category = category.name;
+                        dayCell.dataset.date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+                        // 이벤트 리스너
+                        dayCell.addEventListener('mousedown', handleCellMouseDown);
+                        dayCell.addEventListener('mouseover', handleCellMouseOver);
+                        dayCell.addEventListener('mouseup', handleCellMouseUp);
+                        dayCell.addEventListener('click', handleCellClick);
+
+                        row.appendChild(dayCell);
+                    });
+
+                    tbody.appendChild(row);
+                });
+            });
+
+            table.appendChild(tbody);
+            return table;
+        }
+
+        function handleCellMouseDown(e) {
+            if (e.button !== 0) return; // 왼쪽 클릭만
+            isDragging = true;
+            dragStartCell = e.target;
+            dragEndCell = e.target;
+            e.target.classList.add('selected');
+            e.preventDefault();
+        }
+
+        function handleCellMouseOver(e) {
+            if (!isDragging) return;
+
+            const target = e.target;
+            if (!target.classList.contains('day-cell')) return;
+
+            // 같은 행(담당자)의 셀만 선택 가능
+            if (target.dataset.person !== dragStartCell.dataset.person) return;
+
+            dragEndCell = target;
+            updateDragSelection();
+        }
+
+        function handleCellMouseUp(e) {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // 선택된 범위 확인
+            const selectedCells = document.querySelectorAll('.day-cell.selected');
+            if (selectedCells.length > 0) {
+                openScheduleModal(selectedCells);
+            }
+        }
+
+        function handleCellClick(e) {
+            if (isDragging) return; // 드래그 중이면 무시
+
+            const cell = e.target;
+            const key = getScheduleKey(cell);
+
+            if (scheduleData[key]) {
+                // 기존 일정 편집
+                editSchedule(cell);
+            }
+        }
+
+        function updateDragSelection() {
+            // 모든 선택 해제
+            document.querySelectorAll('.day-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+
+            if (!dragStartCell || !dragEndCell) return;
+
+            // 같은 행의 셀들 찾기
+            const row = dragStartCell.parentElement;
+            const cells = Array.from(row.querySelectorAll('.day-cell'));
+
+            const startIndex = cells.indexOf(dragStartCell);
+            const endIndex = cells.indexOf(dragEndCell);
+
+            const minIndex = Math.min(startIndex, endIndex);
+            const maxIndex = Math.max(startIndex, endIndex);
+
+            for (let i = minIndex; i <= maxIndex; i++) {
+                cells[i].classList.add('selected');
+            }
+        }
+
+        function getScheduleKey(cell) {
+            return `${cell.dataset.person}|${cell.dataset.category}|${cell.dataset.date}`;
+        }
+
+        function openScheduleModal(cells) {
+            const modal = document.getElementById('scheduleModal');
+            const dateRange = document.getElementById('scheduleDateRange');
+            const scheduleText = document.getElementById('scheduleText');
+            const deleteBtn = document.getElementById('deleteScheduleBtn');
+
+            if (cells.length === 1) {
+                const cell = cells[0];
+                const key = getScheduleKey(cell);
+
+                dateRange.value = `${cell.dataset.person} - ${cell.dataset.date}`;
+                scheduleText.value = scheduleData[key] || '';
+
+                // 기존 일정이 있으면 삭제 버튼 표시
+                deleteBtn.style.display = scheduleData[key] ? 'inline-block' : 'none';
+            } else {
+                const firstCell = cells[0];
+                const lastCell = cells[cells.length - 1];
+                dateRange.value = `${firstCell.dataset.person} - ${firstCell.dataset.date} ~ ${lastCell.dataset.date}`;
+                scheduleText.value = '';
+                deleteBtn.style.display = 'none';
+            }
+
+            modal.style.display = 'block';
+            scheduleText.focus();
+        }
+
+        function closeScheduleModal() {
+            const modal = document.getElementById('scheduleModal');
+            modal.style.display = 'none';
+
+            // 선택 해제
+            document.querySelectorAll('.day-cell.selected').forEach(cell => {
+                cell.classList.remove('selected');
+            });
+
+            dragStartCell = null;
+            dragEndCell = null;
+        }
+
+        function saveSchedule() {
+            const scheduleText = document.getElementById('scheduleText').value.trim();
+
+            if (!scheduleText) {
+                alert('일정 내용을 입력해주세요.');
+                return;
+            }
+
+            const selectedCells = document.querySelectorAll('.day-cell.selected');
+
+            selectedCells.forEach(cell => {
+                const key = getScheduleKey(cell);
+                scheduleData[key] = scheduleText;
+            });
+
+            saveScheduleData();
+            closeScheduleModal();
+            renderCalendar();
+            showMessage('calendarMessage', 'success', '일정이 저장되었습니다.');
+        }
+
+        function editSchedule(cell) {
+            cell.classList.add('selected');
+            openScheduleModal([cell]);
+        }
+
+        function deleteSchedule() {
+            if (!confirm('일정을 삭제하시겠습니까?')) {
+                return;
+            }
+
+            const selectedCells = document.querySelectorAll('.day-cell.selected');
+
+            selectedCells.forEach(cell => {
+                const key = getScheduleKey(cell);
+                delete scheduleData[key];
+            });
+
+            saveScheduleData();
+            closeScheduleModal();
+            renderCalendar();
+            showMessage('calendarMessage', 'success', '일정이 삭제되었습니다.');
+        }
+
+        function saveScheduleData() {
+            localStorage.setItem('mondayScheduleData', JSON.stringify(scheduleData));
+        }
+
+        function loadScheduleData() {
+            const saved = localStorage.getItem('mondayScheduleData');
+            if (saved) {
+                scheduleData = JSON.parse(saved);
+            }
+
+            // 달력에 일정 표시
+            Object.keys(scheduleData).forEach(key => {
+                const [person, category, date] = key.split('|');
+                const cell = document.querySelector(
+                    `.day-cell[data-person="${person}"][data-category="${category}"][data-date="${date}"]`
+                );
+
+                if (cell) {
+                    cell.classList.add('has-schedule');
+                    const entry = document.createElement('div');
+                    entry.className = 'schedule-entry';
+                    entry.textContent = scheduleData[key];
+                    entry.onclick = (e) => {
+                        e.stopPropagation();
+                        cell.classList.add('selected');
+                        openScheduleModal([cell]);
+                    };
+                    cell.innerHTML = '';
+                    cell.appendChild(entry);
+                }
+            });
+        }
+
+        // 모달 외부 클릭 시 닫기
+        window.onclick = function(event) {
+            const modal = document.getElementById('scheduleModal');
+            if (event.target === modal) {
+                closeScheduleModal();
+            }
+        }
+
+        // ========== Request 탭 기능 ==========
 
         // 파일 선택 시 파일명 표시
         const scheduleFileInput = document.getElementById('schedule_file');
