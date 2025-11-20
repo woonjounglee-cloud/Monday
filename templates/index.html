@@ -629,26 +629,17 @@
         }
 
         /* 주말 스타일 */
+        .week-table .day-cell.saturday,
+        .week-table .day-cell.sunday {
+            cursor: default;
+        }
+
         .week-table .day-cell.saturday {
             background: #e3f2fd;
         }
 
-        .week-table .day-cell.saturday.has-schedule {
-            background: #bbdefb;
-        }
-
         .week-table .day-cell.sunday {
             background: #ffebee;
-        }
-
-        .week-table .day-cell.sunday.has-schedule {
-            background: #ffcdd2;
-        }
-
-        .week-table .day-cell.saturday.selected,
-        .week-table .day-cell.sunday.selected {
-            background: #667eea;
-            color: white;
         }
 
         .schedule-entry {
@@ -1153,11 +1144,13 @@
                                 dayCell.classList.add('sunday');
                             }
 
-                            // 이벤트 리스너
-                            dayCell.addEventListener('mousedown', handleCellMouseDown);
-                            dayCell.addEventListener('mouseover', handleCellMouseOver);
-                            dayCell.addEventListener('mouseup', handleCellMouseUp);
-                            dayCell.addEventListener('click', handleCellClick);
+                            // 평일에만 이벤트 리스너 추가 (토일 제외)
+                            if (dayIndex !== 5 && dayIndex !== 6) {
+                                dayCell.addEventListener('mousedown', handleCellMouseDown);
+                                dayCell.addEventListener('mouseover', handleCellMouseOver);
+                                dayCell.addEventListener('mouseup', handleCellMouseUp);
+                                dayCell.addEventListener('click', handleCellClick);
+                            }
                         }
 
                         row.appendChild(dayCell);
