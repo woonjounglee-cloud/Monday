@@ -443,8 +443,8 @@ def update_model_info():
     try:
         data = request.get_json()
 
-        # 필수 필드 확인
-        required_fields = ['row_index', 'field', 'value']
+        # 필수 필드 확인 (과제명, 개발모델명으로 행 식별)
+        required_fields = ['task_name', 'model_name', 'field', 'value']
         for field in required_fields:
             if field not in data:
                 return jsonify({
@@ -452,19 +452,23 @@ def update_model_info():
                     'message': f'{field}이(가) 없습니다.'
                 }), 400
 
-        row_index = int(data['row_index'])
+        task_name = data['task_name'].strip()
+        model_name = data['model_name'].strip()
         field_name = data['field']
         new_value = data['value'].strip()
 
         # 데이터베이스 로드
         df = load_model_database()
 
-        # 인덱스 범위 확인
-        if row_index < 0 or row_index >= len(df):
+        # 과제명과 개발모델명으로 행 찾기
+        mask = (df['과제명'] == task_name) & (df['개발모델명'] == model_name)
+        matching_rows = df[mask]
+
+        if len(matching_rows) == 0:
             return jsonify({
                 'success': False,
-                'message': '유효하지 않은 행 번호입니다.'
-            }), 400
+                'message': '해당 모델 정보를 찾을 수 없습니다.'
+            }), 404
 
         # 필드명 확인
         if field_name not in df.columns:
@@ -474,6 +478,7 @@ def update_model_info():
             }), 400
 
         # 값 업데이트
+        row_index = matching_rows.index[0]
         df.at[row_index, field_name] = new_value
 
         # 저장
@@ -482,7 +487,8 @@ def update_model_info():
                 'success': True,
                 'message': '모델 정보가 수정되었습니다.',
                 'data': {
-                    'row_index': row_index,
+                    'task_name': task_name,
+                    'model_name': model_name,
                     'field': field_name,
                     'value': new_value
                 }
@@ -510,25 +516,32 @@ def delete_model_info():
         data = request.get_json()
 
         # 필수 필드 확인
-        if 'row_index' not in data:
-            return jsonify({
-                'success': False,
-                'message': 'row_index가 없습니다.'
-            }), 400
+        required_fields = ['task_name', 'model_name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({
+                    'success': False,
+                    'message': f'{field}이(가) 없습니다.'
+                }), 400
 
-        row_index = int(data['row_index'])
+        task_name = data['task_name'].strip()
+        model_name = data['model_name'].strip()
 
         # 데이터베이스 로드
         df = load_model_database()
 
-        # 인덱스 범위 확인
-        if row_index < 0 or row_index >= len(df):
+        # 과제명과 개발모델명으로 행 찾기
+        mask = (df['과제명'] == task_name) & (df['개발모델명'] == model_name)
+        matching_rows = df[mask]
+
+        if len(matching_rows) == 0:
             return jsonify({
                 'success': False,
-                'message': '유효하지 않은 행 번호입니다.'
-            }), 400
+                'message': '해당 모델 정보를 찾을 수 없습니다.'
+            }), 404
 
         # 행 삭제
+        row_index = matching_rows.index[0]
         df = df.drop(index=row_index).reset_index(drop=True)
 
         # 저장
