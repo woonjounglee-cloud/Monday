@@ -1622,7 +1622,12 @@
 
         // ========== Model Info 탭 기능 ==========
 
+        let lastSearchKeyword = ''; // 마지막 검색어 저장
+        let isShowingAllModels = true; // 전체 보기 상태
+
         async function loadAllModels() {
+            isShowingAllModels = true;
+            lastSearchKeyword = '';
             try {
                 const response = await fetch('/api/model-info/all');
                 const result = await response.json();
@@ -1645,6 +1650,9 @@
                 return;
             }
 
+            isShowingAllModels = false;
+            lastSearchKeyword = keyword;
+
             try {
                 const response = await fetch('/api/model-info/search', {
                     method: 'POST',
@@ -1663,6 +1671,17 @@
                 }
             } catch (error) {
                 showMessage('modelMessage', 'error', '검색 실패: ' + error.message);
+            }
+        }
+
+        // 현재 뷰 새로고침 (수정 후 호출)
+        async function refreshCurrentView() {
+            if (isShowingAllModels) {
+                await loadAllModels();
+            } else if (lastSearchKeyword) {
+                // 검색어가 있으면 같은 검색 다시 실행
+                document.getElementById('searchKeyword').value = lastSearchKeyword;
+                await searchModel();
             }
         }
 
@@ -1747,12 +1766,14 @@
                 if (result.success) {
                     // 저장 성공
                     cell.style.opacity = '1';
-                    cell.dataset.originalValue = newValue; // 새 값을 원래 값으로 업데이트
                     cell.style.background = '#d4edda'; // 성공 색상
                     setTimeout(() => {
                         cell.style.background = '';
                     }, 1000);
                     showMessage('modelMessage', 'success', `${fieldName} 수정되었습니다.`);
+
+                    // 현재 뷰 새로고침 (수정된 데이터 반영)
+                    await refreshCurrentView();
                 } else {
                     cell.style.opacity = '1';
                     showMessage('modelMessage', 'error', result.message);
@@ -1785,8 +1806,8 @@
 
                 if (result.success) {
                     showMessage('modelMessage', 'success', result.message);
-                    // 테이블 새로고침
-                    loadAllModels();
+                    // 현재 뷰 새로고침 (삭제된 데이터 반영)
+                    await refreshCurrentView();
                 } else {
                     showMessage('modelMessage', 'error', result.message);
                 }
